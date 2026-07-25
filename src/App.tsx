@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { watch } from "@tauri-apps/plugin-fs";
 import {
   Copy,
@@ -22,7 +23,9 @@ import type { RefObject } from "react";
 import { Editor } from "./components/Editor";
 import { FileBrowser } from "./components/FileBrowser";
 import { ProjectSidebar } from "./components/ProjectSidebar";
+import { TerminalView } from "./components/Terminal";
 import { basename, dirname, isMarkdown, readFile, writeFile } from "./lib/files";
+import { loadProjectSettings } from "./lib/projectSettings";
 import { loadSession, saveSession } from "./lib/session";
 import {
   DEFAULT_SESSION,
@@ -41,6 +44,7 @@ export default function App() {
   const [dirty, setDirty] = useState(false);
   const [conflict, setConflict] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [shell, setShell] = useState<string | null>(null);
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
@@ -121,6 +125,63 @@ export default function App() {
     if (collapsed) p.expand();
     else p.collapse();
     patch({ [key]: !collapsed } as Partial<Session>);
+  };
+
+  // ---- terminals -----------------------------------------------------------
+
+  useEffect(() => {
+    invoke<string>("default_shell")
+      .then(setShell)
+      .catch(() => setShell("/bin/sh"));
+  }, []);
+
+  const addTerminal = useCallback(async () => {
+    if (!activeProject) {
+      setStatus("Select a project first");
+      return;
+    }
+    const settings = await loadProjectSettings(activeProject.dir);
+    const id = crypto.randomUUID();
+    setSession((s) => ({
+      ...s,
+      terminals: [
+        ...s.terminals,
+        {
+          id,
+          title: `Terminal ${s.terminals.length + 1}`,
+          cwd: activeProject.dir,
+          startupCommand: settings.terminalStartupCommand,
+        },
+      ],
+      activeTerminalId: id,
+    }));
+  }, [activeProject]);
+
+  const closeTerminal = useCallback((id: string) => {
+    setSession((s) => {
+      const terminals = s.terminals.filter((t) => t.id !== id);
+      return {
+        ...s,
+        terminals,
+        activeTerminalId:
+          s.activeTerminalId === id
+            ? (terminals[terminals.length - 1]?.id ?? null)
+            : s.activeTerminalId,
+      };
+    });
+  }, []);
+
+  const toggleTerminalPanel = () => {
+    const p = termPanel.current;
+    if (!p) return;
+    const collapsed = p.isCollapsed();
+    if (collapsed) {
+      p.expand();
+      if (session.terminals.length === 0) addTerminal();
+    } else {
+      p.collapse();
+    }
+    patch({ terminalCollapsed: !collapsed });
   };
 
   // ---- open / load ---------------------------------------------------------
@@ -489,15 +550,32 @@ export default function App() {
             {/* The terminal tab bar doubles as the separator, so it stays
                 visible when the panel is collapsed. */}
             <Separator className="handle terminal-bar" disableDoubleClick>
-              <div className="term-tabs">
-                <div className="term-tab active">
-                  <TerminalSquare size={13} /> Terminal 1
-                </div>
+              <div className="term-tabs" onPointerDown={(e) => e.stopPropagation()}>
+                {session.terminals.map((t) => (
+                  <div
+                    key={t.id}
+                    className={`term-tab${t.id === session.activeTerminalId ? " active" : ""}`}
+                    onClick={() => patch({ activeTerminalId: t.id })}
+                    title={t.cwd}
+                  >
+                    <TerminalSquare size={13} />
+                    <span>{t.title}</span>
+                    <button
+                      className="tab-close"
+                      title="Close terminal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTerminal(t.id);
+                      }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))}
                 <button
                   className="icon-btn"
-                  title="New terminal (P2)"
-                  disabled
-                  onPointerDown={(e) => e.stopPropagation()}
+                  title="New terminal"
+                  onClick={addTerminal}
                 >
                   <Plus size={14} />
                 </button>
@@ -508,7 +586,7 @@ export default function App() {
                   session.terminalCollapsed ? "Show terminal" : "Hide terminal"
                 }
                 onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => toggle(termPanel, "terminalCollapsed")}
+                onClick={toggleTerminalPanel}
               >
                 {session.terminalCollapsed ? "▲" : "▼"}
               </button>
@@ -523,7 +601,22 @@ export default function App() {
               collapsedSize={0}
             >
               <div className="terminal-body">
-                <span>Terminal arrives in P2.</span>
+                {session.terminals.length === 0 && (
+                  <div className="panel-empty">
+                    No terminal open — click + to start one.
+                  </div>
+                )}
+                {shell &&
+                  session.terminals.map((t) => (
+                    <TerminalView
+                      key={t.id}
+                      cwd={t.cwd}
+                      shell={shell}
+                      startupCommand={t.startupCommand}
+                      active={t.id === session.activeTerminalId}
+                      onExit={() => closeTerminal(t.id)}
+                    />
+                  ))}
               </div>
             </Panel>
           </Group>

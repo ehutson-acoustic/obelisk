@@ -7,6 +7,7 @@
     "core:default",
     "opener:default",
     "dialog:default",
+    "pty:default",
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
@@ -19,7 +20,8 @@
     "fs:allow-appconfig-write-recursive",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "$HOME/**" }, { "path": "$APPCONFIG/**" }]
+      "comment": "Projects can live anywhere on disk, so the picker must not be limited to $HOME. The webview only ever loads local app content, so a broad scope adds no remote-content exposure.",
+      "allow": [{ "path": "/**" }, { "path": "$HOME/**" }, { "path": "$APPCONFIG/**" }]
     }
   ]
 }

@@ -262,11 +262,31 @@ button:focus-visible {
 
 .terminal-body {
   height: 100%;
-  padding: 10px 12px;
-  background: var(--bg-sunken);
-  font-size: 12px;
-  color: var(--fg-muted);
-  overflow: auto;
+  background: #1e2128;
+  overflow: hidden;
+}
+
+.terminal-view {
+  height: 100%;
+  padding: 4px 0 0 8px;
+}
+
+.terminal-view .xterm {
+  height: 100%;
+}
+
+.term-tab .tab-close {
+  margin-left: 2px;
+  opacity: 0.6;
+}
+
+.term-tab .tab-close:hover {
+  opacity: 1;
+  background: var(--border);
+}
+
+.term-tab {
+  cursor: pointer;
 }
 
 /* ---- project sidebar --------------------------------------------------- */

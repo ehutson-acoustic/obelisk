@@ -56,6 +56,16 @@ absent. Acceptable — anyone running Claude Code already has it.
 Rejected: `git2`/libgit2 (more code per commit, native build burden on every
 platform), `gitoxide` (write-side APIs still shifting).
 
+### 1.3 Filesystem scope
+
+Tauri v2 gates `plugin-fs` behind an allowlist. The capability grants `/**`.
+
+Scoping to `$HOME/**` was tried first and rejected: projects legitimately live
+outside the home directory, and the failure mode is bad — `readTextFile` throws,
+the editor shows an empty document, and nothing obvious says why. Since the
+webview only ever loads local application content and never remote pages, a
+broad filesystem scope grants no reach that the app doesn't already have.
+
 ---
 
 ## 2. Editor behavior
@@ -198,6 +208,19 @@ Claude Code resolves its project context from its working directory, so
 launching at the project root rather than a subfolder gives it the whole project
 to work with. cwd deliberately does not follow the focused file tab — that would
 silently change what Claude can see as the user switches tabs.
+
+Two pieces of timing matter, both found by testing rather than by reading:
+
+- The command is **resolved when the tab is created** and stored on the tab,
+  not read at mount. The terminal spawns as soon as the shell path is known,
+  which always beats the async project-settings read, so a mount-time lookup
+  captures `undefined` and the command silently never runs.
+- It is **sent after the shell's first output**, not immediately after spawn.
+  An interactive shell discards pending input as type-ahead while it is still
+  reading its startup files, so an immediate write is swallowed.
+
+The command is written into the interactive shell rather than exec'd, so the
+tab survives the command exiting.
 
 ---
 

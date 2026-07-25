@@ -21,6 +21,19 @@ export type OpenFile = {
 
 export type EditorMode = "wysiwyg" | "source";
 
+export type TerminalTab = {
+  id: string;
+  title: string;
+  /** Respawned here on restart; PTY processes don't survive the app. */
+  cwd: string;
+  /**
+   * Resolved from project settings when the tab is created, not at mount.
+   * The terminal spawns as soon as the shell path is known, which always
+   * beats the async settings read, so reading it later loses the race.
+   */
+  startupCommand?: string;
+};
+
 /** Map of panel id to percentage, as react-resizable-panels reports it. */
 export type PanelLayout = Record<string, number>;
 
@@ -33,6 +46,8 @@ export type Session = {
   rightCollapsed: boolean;
   terminalCollapsed: boolean;
   mode: EditorMode;
+  terminals: TerminalTab[];
+  activeTerminalId: string | null;
   layouts: Record<string, PanelLayout>;
 };
 
@@ -45,6 +60,8 @@ export const DEFAULT_SESSION: Session = {
   rightCollapsed: false,
   terminalCollapsed: true,
   mode: "wysiwyg",
+  terminals: [],
+  activeTerminalId: null,
   layouts: {
     outer: { left: 18, center: 82 },
     center: { upper: 70, terminal: 30 },
