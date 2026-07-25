@@ -1,5 +1,6 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorSelection, EditorState } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import { Crepe } from "@milkdown/crepe";
 import { editorViewCtx } from "@milkdown/kit/core";
@@ -8,16 +9,19 @@ import { basicSetup } from "codemirror";
 import { Eye, FileCode } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { frontmatterRemark, frontmatterSchema } from "../lib/frontmatter";
+import type { Theme } from "../lib/theme";
 import { buildToolbar } from "../lib/toolbar";
 import type { EditorMode } from "../types";
 
+// The light/dark half of Crepe's theme is swapped at runtime by lib/theme.ts;
+// importing it here would bundle one variant and pin it.
 import "@milkdown/crepe/theme/common/style.css";
-import "@milkdown/crepe/theme/frame.css";
 
 type ViewProps = {
   value: string;
   readOnly?: boolean;
   cursor?: number;
+  theme: Theme;
   onChange: (value: string) => void;
   onCursorChange: (pos: number) => void;
 };
@@ -94,7 +98,14 @@ function Wysiwyg({ value, readOnly, cursor, onChange, onCursorChange }: ViewProp
   return <div className="crepe-host" ref={host} />;
 }
 
-function Source({ value, readOnly, cursor, onChange, onCursorChange }: ViewProps) {
+function Source({
+  value,
+  readOnly,
+  cursor,
+  theme,
+  onChange,
+  onCursorChange,
+}: ViewProps) {
   const host = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   const onCursorRef = useRef(onCursorChange);
@@ -112,6 +123,7 @@ function Source({ value, readOnly, cursor, onChange, onCursorChange }: ViewProps
       extensions: [
         basicSetup,
         markdown(),
+        ...(theme === "dark" ? [oneDark] : []),
         EditorView.lineWrapping,
         EditorView.editable.of(!readOnly),
         EditorView.updateListener.of((u) => {
@@ -177,9 +189,11 @@ export function Editor({
       </div>
       <div className="editor-scroll">
         {mode === "wysiwyg" ? (
+          // Crepe restyles via the swapped stylesheet, so no remount needed.
           <Wysiwyg key={`w:${key}`} {...view} />
         ) : (
-          <Source key={`s:${key}`} {...view} />
+          // CodeMirror takes its theme as an extension, fixed at construction.
+          <Source key={`s:${key}:${view.theme}`} {...view} />
         )}
       </div>
     </div>

@@ -2,6 +2,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as Xterm } from "@xterm/xterm";
 import { useEffect, useRef } from "react";
 import { spawn } from "tauri-pty";
+import { type Theme, xtermTheme } from "../lib/theme";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -10,6 +11,7 @@ type Props = {
   shell: string;
   startupCommand?: string;
   active: boolean;
+  theme: Theme;
   onExit: () => void;
 };
 
@@ -23,12 +25,16 @@ export function TerminalView({
   shell,
   startupCommand,
   active,
+  theme,
   onExit,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const termRef = useRef<Xterm | null>(null);
   const onExitRef = useRef(onExit);
+  const themeRef = useRef(theme);
   onExitRef.current = onExit;
+  themeRef.current = theme;
 
   useEffect(() => {
     const el = host.current;
@@ -39,17 +45,13 @@ export function TerminalView({
       fontSize: 13,
       cursorBlink: true,
       scrollback: 10000,
-      theme: {
-        background: "#1e2128",
-        foreground: "#e4e6eb",
-        cursor: "#e4e6eb",
-        selectionBackground: "#3a4050",
-      },
+      theme: xtermTheme(themeRef.current),
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(el);
     fitRef.current = fit;
+    termRef.current = term;
 
     // fit() divides by the measured cell size, so it produces NaN dimensions
     // when the panel is collapsed or the tab is hidden.
@@ -112,6 +114,11 @@ export function TerminalView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recolour in place rather than remounting, which would kill the shell.
+  useEffect(() => {
+    if (termRef.current) termRef.current.options.theme = xtermTheme(theme);
+  }, [theme]);
 
   // Re-fit when this tab is revealed; it couldn't measure while hidden.
   useEffect(() => {

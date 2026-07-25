@@ -16,11 +16,18 @@ import type { FileNode } from "../types";
 type Props = {
   root: string | null;
   activePath: string | null;
+  collapsed: boolean;
   onOpen: (path: string) => void;
   onCollapse: () => void;
 };
 
-export function FileBrowser({ root, activePath, onOpen, onCollapse }: Props) {
+export function FileBrowser({
+  root,
+  activePath,
+  collapsed,
+  onOpen,
+  onCollapse,
+}: Props) {
   const [children, setChildren] = useState<Record<string, FileNode[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedDir, setSelectedDir] = useState<string | null>(null);
@@ -139,8 +146,12 @@ export function FileBrowser({ root, activePath, onOpen, onCollapse }: Props) {
           >
             <FolderPlus size={14} />
           </button>
-          <button className="icon-btn" title="Collapse" onClick={onCollapse}>
-            <ChevronUp size={14} />
+          <button
+            className="icon-btn"
+            title={collapsed ? "Expand files" : "Collapse files"}
+            onClick={onCollapse}
+          >
+            {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           </button>
         </div>
       </div>

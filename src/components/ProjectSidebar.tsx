@@ -2,9 +2,9 @@ import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as Dialog from "@radix-ui/react-dialog";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
-  ChevronLeft,
-  ChevronRight,
   FolderOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Settings,
 } from "lucide-react";
@@ -148,18 +148,20 @@ export function ProjectSidebar({
 
       <div className="sidebar-footer">
         <button
-          className="icon-btn"
+          className="side-btn"
           onClick={onToggleCollapse}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {!collapsed && <span>Collapse</span>}
         </button>
         <button
-          className="icon-btn"
+          className="side-btn"
           onClick={onOpenAppSettings}
           title="Application settings"
         >
           <Settings size={16} />
+          {!collapsed && <span>Settings</span>}
         </button>
       </div>
 

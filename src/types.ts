@@ -63,9 +63,8 @@ export const DEFAULT_SESSION: Session = {
   terminals: [],
   activeTerminalId: null,
   layouts: {
-    outer: { left: 18, center: 82 },
-    center: { upper: 70, terminal: 30 },
-    upper: { editor: 74, right: 26 },
+    outer: { left: 18, center: 56, right: 26 },
+    center: { editor: 70, terminal: 30 },
     side: { files: 60, versions: 40 },
   },
 };

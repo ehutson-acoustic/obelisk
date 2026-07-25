@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { watch } from "@tauri-apps/plugin-fs";
 import {
+  ChevronDown,
+  ChevronUp,
   Copy,
   FilePlus,
   GitCommitVertical,
@@ -23,10 +25,23 @@ import type { RefObject } from "react";
 import { Editor } from "./components/Editor";
 import { FileBrowser } from "./components/FileBrowser";
 import { ProjectSidebar } from "./components/ProjectSidebar";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { TerminalView } from "./components/Terminal";
+import {
+  type AppSettings,
+  DEFAULT_APP_SETTINGS,
+  loadAppSettings,
+  saveAppSettings,
+} from "./lib/appSettings";
 import { basename, dirname, isMarkdown, readFile, writeFile } from "./lib/files";
 import { loadProjectSettings } from "./lib/projectSettings";
 import { loadSession, saveSession } from "./lib/session";
+import {
+  applyTheme,
+  resolveTheme,
+  type Theme,
+  watchSystemTheme,
+} from "./lib/theme";
 import {
   DEFAULT_SESSION,
   type EditorMode,
@@ -35,6 +50,9 @@ import {
 } from "./types";
 
 const AUTOSAVE_MS = 1000;
+/** Terminal tab bar height; also the panel's collapsed size, so the bar
+ *  (and its expand toggle) stays visible when the panel is closed. */
+const TERM_BAR_H = 32;
 
 export default function App() {
   const [session, setSession] = useState<Session>(DEFAULT_SESSION);
@@ -45,6 +63,13 @@ export default function App() {
   const [conflict, setConflict] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [shell, setShell] = useState<string | null>(null);
+  const [appSettings, setAppSettings] =
+    useState<AppSettings>(DEFAULT_APP_SETTINGS);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() =>
+    resolveTheme(DEFAULT_APP_SETTINGS.appearance),
+  );
+  const [filesCollapsed, setFilesCollapsed] = useState(false);
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
@@ -93,8 +118,38 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  /**
+   * The header spans the full width but its tabs should line up with the
+   * editor, so they're padded by the live width of the left sidebar. Written
+   * straight to a CSS variable to keep dragging smooth — going through React
+   * state would re-render the tree on every pointer move.
+   */
+  const syncLeftWidth = useCallback(() => {
+    let px: number | undefined;
+    try {
+      px = leftPanel.current?.getSize().inPixels;
+    } catch {
+      // The first onLayoutChange fires before the group finishes registering,
+      // and getSize() throws until it has. A later event will sync it.
+      return;
+    }
+    if (px != null) {
+      document.documentElement.style.setProperty(
+        "--left-w",
+        `${Math.round(px)}px`,
+      );
+    }
+  }, [leftPanel]);
+
+  useEffect(() => {
+    syncLeftWidth();
+    window.addEventListener("resize", syncLeftWidth);
+    return () => window.removeEventListener("resize", syncLeftWidth);
+  }, [syncLeftWidth, ready]);
+
   /** v4 has no per-panel collapse callback, so read the refs after a drag. */
   const syncCollapsed = useCallback(() => {
+    setFilesCollapsed(filesPanel.current?.isCollapsed() ?? false);
     setSession((s) => ({
       ...s,
       leftCollapsed: leftPanel.current?.isCollapsed() ?? s.leftCollapsed,
@@ -102,7 +157,7 @@ export default function App() {
       terminalCollapsed:
         termPanel.current?.isCollapsed() ?? s.terminalCollapsed,
     }));
-  }, [leftPanel, rightPanel, termPanel]);
+  }, [leftPanel, rightPanel, termPanel, filesPanel]);
 
   const onLayoutChanged = useCallback(
     (groupId: string) => (layout: Layout) => {
@@ -111,9 +166,32 @@ export default function App() {
         layouts: { ...s.layouts, [groupId]: layout },
       }));
       syncCollapsed();
+      syncLeftWidth();
     },
-    [syncCollapsed],
+    [syncCollapsed, syncLeftWidth],
   );
+
+  // ---- appearance ----------------------------------------------------------
+
+  useEffect(() => {
+    loadAppSettings().then(setAppSettings);
+  }, []);
+
+  useEffect(() => {
+    const apply = () => {
+      const next = resolveTheme(appSettings.appearance);
+      setTheme(next);
+      applyTheme(next);
+    };
+    apply();
+    if (appSettings.appearance !== "system") return;
+    return watchSystemTheme(apply);
+  }, [appSettings.appearance]);
+
+  const updateSettings = useCallback((next: AppSettings) => {
+    setAppSettings(next);
+    saveAppSettings(next);
+  }, []);
 
   const toggle = (
     ref: RefObject<PanelImperativeHandle | null>,
@@ -407,6 +485,7 @@ export default function App() {
         orientation="horizontal"
         className="main"
         defaultLayout={session.layouts.outer}
+        onLayoutChange={syncLeftWidth}
         onLayoutChanged={onLayoutChanged("outer")}
       >
         <Panel
@@ -424,234 +503,247 @@ export default function App() {
             onSelect={(id) => patch({ activeProjectId: id })}
             onChange={(projects: Project[]) => patch({ projects })}
             onToggleCollapse={() => toggle(leftPanel, "leftCollapsed")}
-            onOpenAppSettings={() =>
-              setStatus("Application settings land in P4")
-            }
+            onOpenAppSettings={() => setSettingsOpen(true)}
           />
         </Panel>
 
         <Separator className="handle vertical" />
 
         <Panel id="center">
-          <Group
-            id="center"
-            orientation="vertical"
-            defaultLayout={session.layouts.center}
-            onLayoutChanged={onLayoutChanged("center")}
-          >
-            <Panel id="upper">
-              <Group
-                id="upper"
-                orientation="horizontal"
-                defaultLayout={session.layouts.upper}
-                onLayoutChanged={onLayoutChanged("upper")}
-              >
-                <Panel id="editor">
-                  <div className="editor-wrap">
-                    {conflict != null && (
-                      <div className="conflict-banner">
-                        <span>
-                          {basename(activePath ?? "")} changed on disk while you
-                          were editing.
-                        </span>
-                        <div className="conflict-actions">
-                          <button className="btn" onClick={acceptExternal}>
-                            Reload
-                          </button>
-                          <button className="btn" onClick={keepMine}>
-                            Keep mine
-                          </button>
-                        </div>
+          <div className="center-col">
+            <Group
+              id="center"
+              orientation="vertical"
+              className="center-group"
+              defaultLayout={session.layouts.center}
+              onLayoutChanged={onLayoutChanged("center")}
+            >
+              <Panel id="editor">
+                <div className="editor-wrap">
+                  {conflict != null && (
+                    <div className="conflict-banner">
+                      <span>
+                        {basename(activePath ?? "")} changed on disk while you
+                        were editing.
+                      </span>
+                      <div className="conflict-actions">
+                        <button className="btn" onClick={acceptExternal}>
+                          Reload
+                        </button>
+                        <button className="btn" onClick={keepMine}>
+                          Keep mine
+                        </button>
                       </div>
-                    )}
-                    <div
-                      className="editor-scroll-host"
-                      ref={scrollHost}
-                      onScroll={(e) => {
-                        const top = e.currentTarget.scrollTop;
-                        setSession((s) => ({
-                          ...s,
-                          openFiles: s.openFiles.map((f) =>
-                            f.path === activePath ? { ...f, scroll: top } : f,
-                          ),
-                        }));
-                      }}
-                    >
-                      <Editor
-                        path={activePath}
-                        revision={revision}
-                        mode={session.mode}
-                        onModeChange={(mode: EditorMode) => patch({ mode })}
-                        value={content}
-                        readOnly={readOnly}
-                        cursor={activeFile?.cursorMode === session.mode
-                          ? activeFile.cursor
-                          : undefined}
-                        onChange={onChange}
-                        onCursorChange={onCursorChange}
-                      />
                     </div>
-                  </div>
-                </Panel>
-
-                <Separator className="handle vertical" />
-
-                <Panel
-                  panelRef={rightPanel}
-                  id="right"
-                  defaultSize="26"
-                  minSize={200}
-                  collapsible
-                  collapsedSize={0}
-                >
-                  <Group
-                    id="side"
-                    orientation="vertical"
-                    defaultLayout={session.layouts.side}
-                    onLayoutChanged={onLayoutChanged("side")}
-                  >
-                    <Panel
-                      panelRef={filesPanel}
-                      id="files"
-                      defaultSize="60"
-                      collapsible
-                      collapsedSize={28}
-                    >
-                      <FileBrowser
-                        root={activeProject?.dir ?? null}
-                        activePath={activePath}
-                        onOpen={openFile}
-                        onCollapse={() => {
-                          const p = filesPanel.current;
-                          if (!p) return;
-                          if (p.isCollapsed()) p.expand();
-                          else p.collapse();
-                        }}
-                      />
-                    </Panel>
-                    <Separator className="handle horizontal" />
-                    <Panel id="versions">
-                      <div className="panel">
-                        <div className="panel-header">
-                          <span className="panel-title">Versions</span>
-                        </div>
-                        <div className="panel-body">
-                          <div className="panel-empty">
-                            Checkpoints arrive in P3.
-                          </div>
-                        </div>
-                      </div>
-                    </Panel>
-                  </Group>
-                </Panel>
-              </Group>
-            </Panel>
-
-            {/* The terminal tab bar doubles as the separator, so it stays
-                visible when the panel is collapsed. */}
-            <Separator className="handle terminal-bar" disableDoubleClick>
-              <div className="term-tabs" onPointerDown={(e) => e.stopPropagation()}>
-                {session.terminals.map((t) => (
+                  )}
                   <div
-                    key={t.id}
-                    className={`term-tab${t.id === session.activeTerminalId ? " active" : ""}`}
-                    onClick={() => patch({ activeTerminalId: t.id })}
-                    title={t.cwd}
+                    className="editor-scroll-host"
+                    ref={scrollHost}
+                    onScroll={(e) => {
+                      const top = e.currentTarget.scrollTop;
+                      setSession((s) => ({
+                        ...s,
+                        openFiles: s.openFiles.map((f) =>
+                          f.path === activePath ? { ...f, scroll: top } : f,
+                        ),
+                      }));
+                    }}
                   >
-                    <TerminalSquare size={13} />
-                    <span>{t.title}</span>
+                    <Editor
+                      path={activePath}
+                      revision={revision}
+                      mode={session.mode}
+                      theme={theme}
+                      onModeChange={(mode: EditorMode) => patch({ mode })}
+                      value={content}
+                      readOnly={readOnly}
+                      cursor={
+                        activeFile?.cursorMode === session.mode
+                          ? activeFile.cursor
+                          : undefined
+                      }
+                      onChange={onChange}
+                      onCursorChange={onCursorChange}
+                    />
+                  </div>
+                </div>
+              </Panel>
+
+              {/* Thin grip so only the top edge drags — the tab bar below it
+                  needs to stay clickable. */}
+              <Separator className="handle terminal-grip" disableDoubleClick />
+
+              <Panel
+                panelRef={termPanel}
+                id="terminal"
+                defaultSize="30"
+                minSize={120}
+                collapsible
+                collapsedSize={TERM_BAR_H}
+              >
+                <div className="terminal-panel">
+                  <div className="term-tabs-bar">
+                    <div className="term-tabs">
+                      {session.terminals.map((t) => (
+                        <div
+                          key={t.id}
+                          className={`term-tab${t.id === session.activeTerminalId ? " active" : ""}`}
+                          onClick={() => patch({ activeTerminalId: t.id })}
+                          title={t.cwd}
+                        >
+                          <TerminalSquare size={13} />
+                          <span>{t.title}</span>
+                          <button
+                            className="tab-close"
+                            title="Close terminal"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              closeTerminal(t.id);
+                            }}
+                          >
+                            <X size={11} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        className="icon-btn"
+                        title="New terminal"
+                        onClick={addTerminal}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
                     <button
-                      className="tab-close"
-                      title="Close terminal"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        closeTerminal(t.id);
-                      }}
+                      className="icon-btn"
+                      title={
+                        session.terminalCollapsed
+                          ? "Show terminal"
+                          : "Hide terminal"
+                      }
+                      onClick={toggleTerminalPanel}
                     >
-                      <X size={11} />
+                      {session.terminalCollapsed ? (
+                        <ChevronUp size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
                     </button>
                   </div>
-                ))}
+
+                  <div className="terminal-body">
+                    {session.terminals.length === 0 && (
+                      <div className="panel-empty">
+                        No terminal open — click + to start one.
+                      </div>
+                    )}
+                    {shell &&
+                      session.terminals.map((t) => (
+                        <TerminalView
+                          key={t.id}
+                          cwd={t.cwd}
+                          shell={shell}
+                          startupCommand={t.startupCommand}
+                          active={t.id === session.activeTerminalId}
+                          theme={theme}
+                          onExit={() => closeTerminal(t.id)}
+                        />
+                      ))}
+                  </div>
+                </div>
+              </Panel>
+            </Group>
+
+            <footer className="footer">
+              <div className="footer-path" title={activePath ?? ""}>
+                <bdi>{activePath ?? "No file open"}</bdi>
+              </div>
+              <div className="footer-actions">
+                {status && <span className="footer-status">{status}</span>}
+                {readOnly && <span className="footer-badge">read-only</span>}
                 <button
                   className="icon-btn"
-                  title="New terminal"
-                  onClick={addTerminal}
+                  title="Copy file contents"
+                  disabled={!activePath}
+                  onClick={copyContents}
                 >
-                  <Plus size={14} />
+                  <Copy size={14} />
+                </button>
+                <button
+                  className="icon-btn"
+                  title="New file in this folder"
+                  disabled={!activePath}
+                  onClick={() =>
+                    setStatus(
+                      `Use the Files panel — target ${dirname(activePath ?? "")}`,
+                    )
+                  }
+                >
+                  <FilePlus size={14} />
                 </button>
               </div>
-              <button
-                className="icon-btn"
-                title={
-                  session.terminalCollapsed ? "Show terminal" : "Hide terminal"
-                }
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={toggleTerminalPanel}
-              >
-                {session.terminalCollapsed ? "▲" : "▼"}
-              </button>
-            </Separator>
+            </footer>
+          </div>
+        </Panel>
 
+        <Separator className="handle vertical" />
+
+        <Panel
+          panelRef={rightPanel}
+          id="right"
+          defaultSize="26"
+          minSize={200}
+          collapsible
+          collapsedSize={0}
+        >
+          <Group
+            id="side"
+            orientation="vertical"
+            defaultLayout={session.layouts.side}
+            onLayoutChanged={onLayoutChanged("side")}
+          >
             <Panel
-              panelRef={termPanel}
-              id="terminal"
-              defaultSize="30"
-              minSize={80}
+              panelRef={filesPanel}
+              id="files"
+              defaultSize="60"
               collapsible
-              collapsedSize={0}
+              collapsedSize={28}
             >
-              <div className="terminal-body">
-                {session.terminals.length === 0 && (
-                  <div className="panel-empty">
-                    No terminal open — click + to start one.
-                  </div>
-                )}
-                {shell &&
-                  session.terminals.map((t) => (
-                    <TerminalView
-                      key={t.id}
-                      cwd={t.cwd}
-                      shell={shell}
-                      startupCommand={t.startupCommand}
-                      active={t.id === session.activeTerminalId}
-                      onExit={() => closeTerminal(t.id)}
-                    />
-                  ))}
+              <FileBrowser
+                root={activeProject?.dir ?? null}
+                activePath={activePath}
+                collapsed={filesCollapsed}
+                onOpen={openFile}
+                onCollapse={() => {
+                  const p = filesPanel.current;
+                  if (!p) return;
+                  const wasCollapsed = p.isCollapsed();
+                  if (wasCollapsed) p.expand();
+                  else p.collapse();
+                  setFilesCollapsed(!wasCollapsed);
+                }}
+              />
+            </Panel>
+            <Separator className="handle horizontal" />
+            <Panel id="versions">
+              <div className="panel">
+                <div className="panel-header">
+                  <span className="panel-title">Versions</span>
+                </div>
+                <div className="panel-body">
+                  <div className="panel-empty">Checkpoints arrive in P3.</div>
+                </div>
               </div>
             </Panel>
           </Group>
         </Panel>
       </Group>
 
-      <footer className="footer">
-        <div className="footer-path" title={activePath ?? ""}>
-          <bdi>{activePath ?? "No file open"}</bdi>
-        </div>
-        <div className="footer-actions">
-          {status && <span className="footer-status">{status}</span>}
-          {readOnly && <span className="footer-badge">read-only</span>}
-          <button
-            className="icon-btn"
-            title="Copy file contents"
-            disabled={!activePath}
-            onClick={copyContents}
-          >
-            <Copy size={14} />
-          </button>
-          <button
-            className="icon-btn"
-            title="New file in this folder"
-            disabled={!activePath}
-            onClick={() =>
-              setStatus(
-                `Use the Files panel — target ${dirname(activePath ?? "")}`,
-              )
-            }
-          >
-            <FilePlus size={14} />
-          </button>
-        </div>
-      </footer>
+      <SettingsDialog
+        open={settingsOpen}
+        settings={appSettings}
+        onChange={updateSettings}
+        onOpenChange={setSettingsOpen}
+      />
     </div>
   );
 }

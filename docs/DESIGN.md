@@ -9,21 +9,21 @@ resurfaces, the answer should be here.
 
 Status: agreed 2026-07-25. Implementation in progress.
 
----
+***
 
 ## 1. Stack
 
-| Layer | Choice |
-|---|---|
-| Shell | Tauri v2 |
-| Backend | Rust 1.94 |
-| Frontend | React + Vite + TypeScript |
+| Layer         | Choice                                  |
+| ------------- | --------------------------------------- |
+| Shell         | Tauri v2                                |
+| Backend       | Rust 1.94                               |
+| Frontend      | React + Vite + TypeScript               |
 | UI primitives | Radix / shadcn (dialogs, context menus) |
-| WYSIWYG | Milkdown / Crepe (ProseMirror + remark) |
-| Source view | CodeMirror 6, markdown mode |
-| Terminal | `@xterm/xterm` + `tauri-plugin-pty` |
-| Git | shell out to the system `git` binary |
-| Splitters | `react-resizable-panels` |
+| WYSIWYG       | Milkdown / Crepe (ProseMirror + remark) |
+| Source view   | CodeMirror 6, markdown mode             |
+| Terminal      | `@xterm/xterm` + `tauri-plugin-pty`     |
+| Git           | shell out to the system `git` binary    |
+| Splitters     | `react-resizable-panels`                |
 
 ### 1.1 Why Milkdown instead of Editor.js
 
@@ -66,7 +66,7 @@ the editor shows an empty document, and nothing obvious says why. Since the
 webview only ever loads local application content and never remote pages, a
 broad filesystem scope grants no reach that the app doesn't already have.
 
----
+***
 
 ## 2. Editor behavior
 
@@ -94,9 +94,10 @@ Reverting is done via checkpoint.
 The defining interaction of the app: Claude writes a file that is open in the
 editor. Detected via `@tauri-apps/plugin-fs`'s `watch`.
 
-- **Buffer clean** (the normal case under autosave): reload silently, preserving
+* **Buffer clean** (the normal case under autosave): reload silently, preserving
   cursor and scroll position. Watching Claude edit feels live.
-- **Buffer dirty** (mid-keystroke): non-blocking banner offering
+
+* **Buffer dirty** (mid-keystroke): non-blocking banner offering
   *Reload* / *Keep Mine* / *Show Diff*. Never destroy in-flight typing.
 
 Writes originating from our own autosave are echo-suppressed, or the watcher
@@ -117,7 +118,7 @@ disk, that mangling would be persisted — silent corruption of any file with
 frontmatter, which is the worst failure mode available in this app. Round-trips
 byte-identically.
 
----
+***
 
 ## 3. Checkpoints
 
@@ -133,7 +134,7 @@ interleave editor noise into that history permanently, and the editor would be
 writing to the same index and `HEAD` the user manipulates by hand — breaking
 during rebases, merges, or staged work.
 
-The shadow repo behaves identically whether or not the folder is already a repo,
+The shadow repo behaves ***identically*** whether or not the folder is already a repo,
 and because it shares the working tree it honors the project's existing
 `.gitignore` for free. A default exclude list (`node_modules`, `target`,
 `.venv`) covers projects that lack one.
@@ -197,7 +198,7 @@ recover from. A full-repo checkout was rejected for exactly that reason — it
 would rewrite unrelated files and strand the user in a state the UI would have
 to talk them out of.
 
----
+***
 
 ## 4. Terminal
 
@@ -211,26 +212,28 @@ silently change what Claude can see as the user switches tabs.
 
 Two pieces of timing matter, both found by testing rather than by reading:
 
-- The command is **resolved when the tab is created** and stored on the tab,
+* The command is **resolved when the tab is created** and stored on the tab,
   not read at mount. The terminal spawns as soon as the shell path is known,
   which always beats the async project-settings read, so a mount-time lookup
   captures `undefined` and the command silently never runs.
-- It is **sent after the shell's first output**, not immediately after spawn.
+
+* It is **sent after the shell's first output**, not immediately after spawn.
   An interactive shell discards pending input as type-ahead while it is still
   reading its startup files, so an immediate write is swallowed.
 
 The command is written into the interactive shell rather than exec'd, so the
 tab survives the command exiting.
 
----
+***
 
 ## 5. Settings
 
 ### 5.1 Locations
 
-- **App defaults** — OS-appropriate config directory, resolved by Tauri
+* **App defaults** — OS-appropriate config directory, resolved by Tauri
   (`~/.config/md-editor` on Linux, `~/Library/Application Support/…` on macOS).
-- **Project overrides** — `.mdeditor/settings.json`, beside the shadow repo.
+
+* **Project overrides** — `.mdeditor/settings.json`, beside the shadow repo.
 
 ### 5.2 Inheritance
 
@@ -238,10 +241,10 @@ Project settings are stored **sparsely** — only keys that differ from app
 defaults. The file stays small and readable, and future changes to defaults flow
 through to existing projects automatically.
 
-| Scope | Settings |
-|---|---|
+| Scope               | Settings                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------- |
 | Project-overridable | markdown theme, per-component styles, checkpoint interval, terminal startup command |
-| App-only | light / dark / system mode, layout sizes |
+| App-only            | light / dark / system mode, layout sizes                                            |
 
 Appearance mode is deliberately app-only. Making it per-project means switching
 projects flips the whole app between light and dark, which reads as a bug.
@@ -269,7 +272,7 @@ A one-time prompt before adding `.mdeditor/git/` to the project's real
 Only the `git/` subdirectory is ignored — `settings.json` stays committable, so
 project theming can be shared with collaborators if desired.
 
----
+***
 
 ## 6. Layout
 
@@ -288,14 +291,17 @@ project theming can be shared with collaborators if desired.
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Left sidebar** — project cards. Collapses to a narrow rail; toggle sits just
+* **Left sidebar** — project cards. Collapses to a narrow rail; toggle sits just
   above the settings gear, which is pinned to the bottom.
-- **Right sidebar** — file browser on top, versions below, draggable divider
+
+* **Right sidebar** — file browser on top, versions below, draggable divider
   between them. Collapses completely; toggle lives in the header bar.
-- **Terminal** — tabbed, `+` to the right of the tabs. The tab bar stays visible
+
+* **Terminal** — tabbed, `+` to the right of the tabs. The tab bar stays visible
   when the panel is collapsed, because that is where the expand toggle lives.
   Dragging the tab bar resizes the panel.
-- **Footer** — full file path, ellipsed on the left when too long, plus quick
+
+* **Footer** — full file path, ellipsed on the left when too long, plus quick
   buttons to copy file contents and create a new file in the current folder.
 
 ### 6.1 Project cards
@@ -309,17 +315,21 @@ check) rather than hardcoded, so titles stay readable against any chosen color.
 Right-click menu: Edit, Settings, Remove. Removing a project removes it from the
 list only — it never touches files on disk.
 
----
+***
 
 ## 7. Session persistence
 
 Stored as `session.json` in the app config directory. Restores:
 
-- projects list and active project
-- open file tabs and which was focused
-- per-file cursor and scroll position
-- sidebar collapse states and all panel sizes
-- terminal tabs by count and cwd
+* projects list and active project
+
+* open file tabs and which was focused
+
+* per-file cursor and scroll position
+
+* sidebar collapse states and all panel sizes
+
+* terminal tabs by count and cwd
 
 A stored cursor is tagged with the view that produced it. ProseMirror positions
 count node boundaries and CodeMirror offsets don't, so an offset from one view
@@ -329,7 +339,7 @@ modes match, rather than jumping the caret to a wrong position on toggle.
 Terminal tabs respawn as fresh shells. PTY processes die with the app, so
 scrollback cannot be restored.
 
----
+***
 
 ## 8. Platforms
 
@@ -343,35 +353,37 @@ ConPTY differs meaningfully from Unix ptys.
 Verified dev environment: Ubuntu 24.04, webkit2gtk 4.1, Node 22.17, pnpm 10.29,
 Rust 1.94, git 2.43.
 
----
+***
 
 ## 9. Testing
 
-- **Rust integration tests** over throwaway repos, exercising
+* **Rust integration tests** over throwaway repos, exercising
   checkpoint → edit → restore → verify-content.
-- **Unit tests** for settings merge, the diff-heuristic title generator, and
+
+* **Unit tests** for settings merge, the diff-heuristic title generator, and
   relative-time formatting.
-- **UI** verified by hand.
+
+* **UI** verified by hand.
 
 The checkpoint/restore path can destroy the user's writing, and its failure mode
 is silent — a wrong restore looks like a successful one. That is the piece worth
 covering regardless of how light testing stays elsewhere. Tauri E2E was rejected
 as slow and flaky enough to end up ignored.
 
----
+***
 
 ## 10. Build order
 
-| Phase | Contents |
-|---|---|
+| Phase  | Contents                                                                                                                              |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | **P1** | Tauri shell, three-panel layout with splitters and collapse, project sidebar, file browser, open/edit/autosave, WYSIWYG↔source toggle |
-| **P2** | Terminal panel |
-| **P3** | Checkpoints and versions sidebar |
-| **P4** | Settings and theming |
+| **P2** | Terminal panel                                                                                                                        |
+| **P3** | Checkpoints and versions sidebar                                                                                                      |
+| **P4** | Settings and theming                                                                                                                  |
 
 Each phase ends somewhere usable, and dependencies flow forward without rework.
 
----
+***
 
 ## 11. Open questions
 
@@ -385,3 +397,4 @@ Recorded assumptions, not yet exercised in real use. Revisit when they bite.
    above it.
 3. **Checkpoint interval** — 5 minutes is a guess. Adjust once there is a feel
    for how noisy the versions list gets.
+

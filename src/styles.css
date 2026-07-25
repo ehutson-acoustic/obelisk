@@ -1,4 +1,3 @@
-/* P1 ships the light shell only; the dark/light/system switch is P4 (DESIGN §5.2). */
 :root {
   --bg: #ffffff;
   --bg-sunken: #f4f5f7;
@@ -9,12 +8,34 @@
   --fg-muted: #6b7280;
   --accent: #2f6f4e;
   --danger: #b42318;
-  --row: 34px;
+  --term-bg: #ffffff;
+  --banner-bg: #fff8e1;
+  --banner-border: #f0d68a;
+  /* Width of the left sidebar, written from App so header tabs can line up
+     with the editor. */
+  --left-w: 0px;
 
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
   color: var(--fg);
   background: var(--bg);
+}
+
+:root[data-theme="dark"] {
+  --bg: #16181d;
+  --bg-sunken: #1b1e24;
+  --bg-raised: #1f232a;
+  --border: #2b3038;
+  --border-strong: #3a414b;
+  --fg: #e4e6eb;
+  --fg-muted: #9aa1ad;
+  --accent: #5fb98a;
+  --danger: #f2807a;
+  --term-bg: #1e2128;
+  --banner-bg: #3a3320;
+  --banner-border: #6b5a24;
+
+  color-scheme: dark;
 }
 
 * {
@@ -58,6 +79,18 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+.crash {
+  padding: 24px;
+  overflow: auto;
+  height: 100%;
+}
+
+.crash pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: var(--danger);
+}
+
 /* ---- shell ------------------------------------------------------------- */
 
 .app {
@@ -81,11 +114,13 @@ button:focus-visible {
   background: var(--bg-raised);
 }
 
+/* Indent past the left sidebar so the first tab lines up with the editor. */
 .tabs {
   display: flex;
   gap: 2px;
   flex: 1;
   min-width: 0;
+  padding-left: var(--left-w);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -130,10 +165,24 @@ button:focus-visible {
   gap: 6px;
 }
 
+/* Editor, terminal and footer stack between the two full-height sidebars. */
+.center-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+.center-group {
+  flex: 1;
+  min-height: 0;
+}
+
 .footer {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: none;
   height: 26px;
   padding: 0 8px;
   border-top: 1px solid var(--border);
@@ -225,24 +274,47 @@ button:focus-visible {
   background: var(--accent);
 }
 
-/* The terminal tab bar *is* the handle, so it survives collapse. */
-.handle.terminal-bar {
+/* Only this thin strip drags. The tab bar sits below it inside the panel, so
+   its buttons stay clickable, and the panel's collapsed size equals the bar
+   height so the bar survives collapsing. */
+.handle.terminal-grip {
+  height: 5px;
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border);
+  cursor: row-resize;
+}
+
+.handle.terminal-grip:hover,
+.handle.terminal-grip[data-separator-state="drag"] {
+  background: var(--accent);
+}
+
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.term-tabs-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 30px;
+  flex: none;
+  height: 32px;
   padding: 0 6px;
   background: var(--bg-raised);
-  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  cursor: row-resize;
 }
 
 .term-tabs {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .term-tab {
@@ -261,8 +333,9 @@ button:focus-visible {
 }
 
 .terminal-body {
-  height: 100%;
-  background: #1e2128;
+  flex: 1;
+  min-height: 0;
+  background: var(--term-bg);
   overflow: hidden;
 }
 
@@ -380,12 +453,32 @@ button:focus-visible {
 
 .sidebar-footer {
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex-direction: column;
   gap: 2px;
   padding: 6px;
   border-top: 1px solid var(--border);
+}
+
+/* Full-width rows with labels when expanded; centred icons when collapsed. */
+.side-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.side-btn:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.project-sidebar.collapsed .side-btn {
+  justify-content: center;
+  padding: 7px 0;
 }
 
 /* ---- right sidebar panels ---------------------------------------------- */
@@ -606,8 +699,8 @@ button:focus-visible {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  background: #fff8e1;
-  border-bottom: 1px solid #f0d68a;
+  background: var(--banner-bg);
+  border-bottom: 1px solid var(--banner-border);
   font-size: 13px;
 }
 
@@ -677,6 +770,34 @@ button:focus-visible {
 
 .field-row .btn {
   flex: none;
+}
+
+.mode-row {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-btn {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.mode-btn:hover {
+  background: var(--bg-sunken);
+}
+
+.mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .swatches {
