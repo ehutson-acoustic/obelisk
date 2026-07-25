@@ -532,6 +532,79 @@ button:focus-visible {
   color: var(--danger);
 }
 
+.panel-note {
+  font-size: 11px;
+  color: var(--fg-muted);
+  padding-right: 8px;
+}
+
+/* ---- versions ---------------------------------------------------------- */
+
+.version-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "title restore" "meta restore";
+  gap: 0 8px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.version-row:hover:not(:disabled) {
+  background: var(--bg-sunken);
+}
+
+.version-title {
+  grid-area: title;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.version-meta code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.version-restore {
+  grid-area: restore;
+  align-self: center;
+  color: var(--fg-muted);
+  opacity: 0;
+}
+
+.version-row:hover .version-restore {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.dialog-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dialog-text code,
+.dialog-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+}
+
 .tree-row {
   display: flex;
   align-items: center;

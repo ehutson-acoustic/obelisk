@@ -48,6 +48,8 @@ export type Session = {
   mode: EditorMode;
   terminals: TerminalTab[];
   activeTerminalId: string | null;
+  /** Project ids already asked about the .gitignore entry — asked once only. */
+  gitignorePrompted: string[];
   layouts: Record<string, PanelLayout>;
 };
 
@@ -62,6 +64,7 @@ export const DEFAULT_SESSION: Session = {
   mode: "wysiwyg",
   terminals: [],
   activeTerminalId: null,
+  gitignorePrompted: [],
   layouts: {
     outer: { left: 18, center: 56, right: 26 },
     center: { editor: 70, terminal: 30 },

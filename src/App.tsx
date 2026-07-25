@@ -1,3 +1,4 @@
+import * as Dialog from "@radix-ui/react-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { watch } from "@tauri-apps/plugin-fs";
 import {
@@ -22,18 +23,31 @@ import {
   usePanelRef,
 } from "react-resizable-panels";
 import type { RefObject } from "react";
+import { CheckpointDialog } from "./components/CheckpointDialog";
 import { Editor } from "./components/Editor";
 import { FileBrowser } from "./components/FileBrowser";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { TerminalView } from "./components/Terminal";
+import { VersionsPanel } from "./components/VersionsPanel";
 import {
   type AppSettings,
   DEFAULT_APP_SETTINGS,
   loadAppSettings,
   saveAppSettings,
 } from "./lib/appSettings";
+import {
+  type Checkpoint,
+  checkpointFromContent,
+  checkpointStatus,
+  createCheckpoint,
+  gitAvailable,
+  listCheckpoints,
+  restoreCheckpoint,
+} from "./lib/checkpoints";
+import { checkpointTitle } from "./lib/checkpointTitle";
 import { basename, dirname, isMarkdown, readFile, writeFile } from "./lib/files";
+import { addGitignoreEntry, needsGitignoreEntry } from "./lib/gitignore";
 import { loadProjectSettings } from "./lib/projectSettings";
 import { loadSession, saveSession } from "./lib/session";
 import {
@@ -50,6 +64,8 @@ import {
 } from "./types";
 
 const AUTOSAVE_MS = 1000;
+/** DESIGN §3.4 — periodic checkpoint while the buffer is dirty. */
+const DEFAULT_CHECKPOINT_MIN = 5;
 /** Terminal tab bar height; also the panel's collapsed size, so the bar
  *  (and its expand toggle) stays visible when the panel is closed. */
 const TERM_BAR_H = 32;
@@ -70,6 +86,13 @@ export default function App() {
     resolveTheme(DEFAULT_APP_SETTINGS.appearance),
   );
   const [filesCollapsed, setFilesCollapsed] = useState(false);
+  const [gitOk, setGitOk] = useState(true);
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [ckptBusy, setCkptBusy] = useState(false);
+  const [ckptError, setCkptError] = useState<string | null>(null);
+  const [ckptDialog, setCkptDialog] = useState({ open: false, suggestion: "" });
+  const [ckptIntervalMin, setCkptIntervalMin] = useState(DEFAULT_CHECKPOINT_MIN);
+  const [gitignoreAsk, setGitignoreAsk] = useState<string | null>(null);
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
@@ -80,6 +103,9 @@ export default function App() {
   const lastWrite = useRef<string | null>(null);
   const saveTimer = useRef<number | null>(null);
   const cursorTimer = useRef<number | null>(null);
+  /** Read by the periodic checkpoint timer without resetting it per keystroke. */
+  const dirtyRef = useRef(false);
+  const contentRef = useRef("");
 
   const activePath = session.activeFilePath;
   const activeProject = useMemo(
@@ -364,6 +390,170 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activePath, content, readOnly, flushSave]);
 
+  // ---- checkpoints ---------------------------------------------------------
+
+  // Read by timers and async callbacks that must not re-subscribe per keystroke.
+  dirtyRef.current = dirty;
+  contentRef.current = content;
+
+  useEffect(() => {
+    gitAvailable()
+      .then(setGitOk)
+      .catch(() => setGitOk(false));
+  }, []);
+
+  useEffect(() => {
+    if (!activeProject) {
+      setCkptIntervalMin(DEFAULT_CHECKPOINT_MIN);
+      return;
+    }
+    loadProjectSettings(activeProject.dir).then((s) =>
+      setCkptIntervalMin(s.checkpointIntervalMinutes ?? DEFAULT_CHECKPOINT_MIN),
+    );
+  }, [activeProject]);
+
+  const refreshCheckpoints = useCallback(async () => {
+    if (!activeProject || !activePath || !gitOk) {
+      setCheckpoints([]);
+      return;
+    }
+    try {
+      setCheckpoints(await listCheckpoints(activeProject.dir, activePath));
+      setCkptError(null);
+    } catch (err) {
+      setCkptError(String(err));
+    }
+  }, [activeProject, activePath, gitOk]);
+
+  useEffect(() => {
+    refreshCheckpoints();
+  }, [refreshCheckpoints, revision]);
+
+  const suggestTitle = useCallback(async () => {
+    if (!activeProject || !activePath) return "Checkpoint";
+    const status = await checkpointStatus(activeProject.dir, activePath);
+    return checkpointTitle({
+      fileName: basename(activePath),
+      content: contentRef.current,
+      diff: status.diff,
+      tracked: status.tracked,
+    });
+  }, [activeProject, activePath]);
+
+  const openCheckpointDialog = useCallback(async () => {
+    if (!activeProject || !activePath) return;
+    try {
+      setCkptDialog({ open: true, suggestion: await suggestTitle() });
+    } catch (err) {
+      setCkptError(String(err));
+    }
+  }, [activeProject, activePath, suggestTitle]);
+
+  const confirmCheckpoint = useCallback(
+    async (title: string) => {
+      if (!activeProject || !activePath) return;
+      setCkptDialog({ open: false, suggestion: "" });
+      setCkptBusy(true);
+      try {
+        // Flush any pending autosave so the commit matches what's on screen.
+        if (saveTimer.current) window.clearTimeout(saveTimer.current);
+        await flushSave(contentRef.current, activePath);
+        const short = await createCheckpoint(
+          activeProject.dir,
+          activePath,
+          title,
+        );
+        setStatus(short ? `Checkpoint ${short}` : "No changes to checkpoint");
+        await refreshCheckpoints();
+      } catch (err) {
+        setCkptError(String(err));
+      } finally {
+        setCkptBusy(false);
+      }
+    },
+    [activeProject, activePath, flushSave, refreshCheckpoints],
+  );
+
+  const handleRestore = useCallback(
+    async (checkpoint: Checkpoint) => {
+      if (!activeProject || !activePath) return;
+      setCkptBusy(true);
+      try {
+        // Preserve what's on screen first, so no restore is ever destructive
+        // and history stays linear (DESIGN §3.6).
+        await checkpointFromContent(
+          activeProject.dir,
+          activePath,
+          contentRef.current,
+          `Before restoring ${checkpoint.short}`,
+        );
+        await restoreCheckpoint(activeProject.dir, activePath, checkpoint.sha);
+        await loadInto(activePath);
+        await refreshCheckpoints();
+        setStatus(`Restored ${checkpoint.short}`);
+      } catch (err) {
+        setCkptError(String(err));
+      } finally {
+        setCkptBusy(false);
+      }
+    },
+    [activeProject, activePath, loadInto, refreshCheckpoints],
+  );
+
+  // Periodic checkpoint while dirty.
+  useEffect(() => {
+    if (!activeProject || !activePath || !gitOk) return;
+    const id = window.setInterval(
+      async () => {
+        if (!dirtyRef.current) return;
+        try {
+          const short = await createCheckpoint(
+            activeProject.dir,
+            activePath,
+            await suggestTitle(),
+          );
+          if (short) await refreshCheckpoints();
+        } catch {
+          /* transient; the next tick tries again */
+        }
+      },
+      Math.max(1, ckptIntervalMin) * 60_000,
+    );
+    return () => window.clearInterval(id);
+  }, [
+    activeProject,
+    activePath,
+    gitOk,
+    ckptIntervalMin,
+    suggestTitle,
+    refreshCheckpoints,
+  ]);
+
+  // Offer to keep checkpoint history out of the project's own repo, once.
+  useEffect(() => {
+    if (!activeProject || !gitOk) return;
+    if (session.gitignorePrompted.includes(activeProject.id)) return;
+    needsGitignoreEntry(activeProject.dir).then((needs) => {
+      if (needs) setGitignoreAsk(activeProject.id);
+    });
+  }, [activeProject, gitOk, session.gitignorePrompted]);
+
+  const resolveGitignore = (add: boolean) => {
+    const id = gitignoreAsk;
+    setGitignoreAsk(null);
+    if (!id) return;
+    const project = session.projects.find((p) => p.id === id);
+    setSession((s) => ({
+      ...s,
+      gitignorePrompted: [...s.gitignorePrompted, id],
+    }));
+    if (add && project) {
+      addGitignoreEntry(project.dir).catch((err) =>
+        setStatus(`Could not update .gitignore: ${err}`),
+      );
+    }
+  };
+
   // ---- external changes ----------------------------------------------------
 
   useEffect(() => {
@@ -380,6 +570,17 @@ export default function App() {
           if (dirty) {
             setConflict(text);
           } else {
+            // The incoming bytes are already on disk, so the state worth
+            // keeping exists only in the buffer — commit it from memory
+            // before it's replaced (DESIGN §3.4).
+            if (activeProject && gitOk && content) {
+              await checkpointFromContent(
+                activeProject.dir,
+                activePath,
+                content,
+                `Before external change to ${basename(activePath)}`,
+              ).catch(() => {});
+            }
             lastWrite.current = text;
             setContent(text);
             setRevision((r) => r + 1);
@@ -398,7 +599,7 @@ export default function App() {
       cancelled = true;
       unwatch?.();
     };
-  }, [activePath, dirty, content]);
+  }, [activePath, dirty, content, activeProject, gitOk]);
 
   const acceptExternal = () => {
     if (conflict == null) return;
@@ -459,7 +660,16 @@ export default function App() {
           ))}
         </div>
         <div className="header-actions">
-          <button className="btn" title="Create a checkpoint (P3)" disabled>
+          <button
+            className="btn"
+            title={
+              gitOk
+                ? "Create a checkpoint"
+                : "git was not found on PATH"
+            }
+            disabled={!activePath || !activeProject || !gitOk || ckptBusy}
+            onClick={openCheckpointDialog}
+          >
             <GitCommitVertical size={14} /> Checkpoint
           </button>
           <button
@@ -725,14 +935,14 @@ export default function App() {
             </Panel>
             <Separator className="handle horizontal" />
             <Panel id="versions">
-              <div className="panel">
-                <div className="panel-header">
-                  <span className="panel-title">Versions</span>
-                </div>
-                <div className="panel-body">
-                  <div className="panel-empty">Checkpoints arrive in P3.</div>
-                </div>
-              </div>
+              <VersionsPanel
+                checkpoints={checkpoints}
+                hasFile={!!activePath && !!activeProject}
+                gitMissing={!gitOk}
+                error={ckptError}
+                busy={ckptBusy}
+                onRestore={handleRestore}
+              />
             </Panel>
           </Group>
         </Panel>
@@ -744,6 +954,50 @@ export default function App() {
         onChange={updateSettings}
         onOpenChange={setSettingsOpen}
       />
+
+      <CheckpointDialog
+        open={ckptDialog.open}
+        suggestion={ckptDialog.suggestion}
+        fileName={activePath ?? ""}
+        onConfirm={confirmCheckpoint}
+        onOpenChange={(open) =>
+          setCkptDialog((d) => ({ ...d, open }))
+        }
+      />
+
+      <Dialog.Root
+        open={!!gitignoreAsk}
+        onOpenChange={(open) => !open && resolveGitignore(false)}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="overlay" />
+          <Dialog.Content className="dialog">
+            <Dialog.Title className="dialog-title">
+              Ignore checkpoint history?
+            </Dialog.Title>
+            <p className="dialog-text">
+              This project is a git repository. md-editor keeps its checkpoint
+              history in <code>.mdeditor/git/</code>, which you probably don't
+              want to commit. Add it to this project's <code>.gitignore</code>?
+            </p>
+            <p className="dialog-hint">
+              <code>.mdeditor/settings.json</code> stays tracked, so project
+              settings can still be shared.
+            </p>
+            <div className="dialog-actions">
+              <button className="btn" onClick={() => resolveGitignore(false)}>
+                Not now
+              </button>
+              <button
+                className="btn primary"
+                onClick={() => resolveGitignore(true)}
+              >
+                Add it
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

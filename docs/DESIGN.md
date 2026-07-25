@@ -66,6 +66,13 @@ the editor shows an empty document, and nothing obvious says why. Since the
 webview only ever loads local application content and never remote pages, a
 broad filesystem scope grants no reach that the app doesn't already have.
 
+The plugin also needs `requireLiteralLeadingDot: false` in `tauri.conf.json`.
+It defaults to `true` on Unix, which means no glob pattern matches a path
+containing a dot-directory — so a project under `~/.config`, `~/.local`, or any
+dotfile repo silently fails to open *and* fails to watch, with the reads and the
+file watcher failing independently for the same reason. Nothing in the app has a
+reason to treat dot-directories as hidden.
+
 ***
 
 ## 2. Editor behavior
