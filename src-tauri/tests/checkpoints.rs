@@ -197,6 +197,37 @@ fn content_checkpoint_leaves_normal_checkpoints_working() {
     assert_eq!(read(&file), "v2\n");
 }
 
+/// Regression: git resolves pathspecs against the process working directory,
+/// not the work tree. `pnpm tauri dev` launches the binary from `src-tauri`,
+/// so when the project being edited *is* the app's own repo, every
+/// `-- <file>` argument silently matched nothing: no changes detected, no
+/// history listed, no periodic checkpoints.
+#[test]
+fn works_when_the_process_cwd_is_inside_the_project() {
+    let dir = project();
+    let sub = dir.path().join("src-tauri");
+    fs::create_dir_all(&sub).unwrap();
+    let file = write(dir.path(), "notes.md", "v1\n");
+
+    let original_cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&sub).unwrap();
+
+    let outcome = (|| {
+        create(dir.path(), &file, "first")?;
+        fs::write(&file, "v2 changed\n").unwrap();
+        let st = status(dir.path(), &file)?;
+        let entries = list(dir.path(), &file)?;
+        Ok::<_, String>((st, entries))
+    })();
+
+    std::env::set_current_dir(original_cwd).unwrap();
+    let (st, entries) = outcome.expect("checkpoint ops from a nested cwd");
+
+    assert!(st.changed, "the edit must be visible from a nested cwd");
+    assert_eq!(entries.len(), 1, "history must be visible from any cwd");
+    assert_eq!(entries[0].title, "first");
+}
+
 #[test]
 fn history_is_scoped_per_file() {
     let dir = project();

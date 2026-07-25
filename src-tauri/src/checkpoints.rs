@@ -52,6 +52,12 @@ pub fn git_available() -> bool {
 
 fn git(project: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new("git")
+        // Pathspecs resolve relative to the process's working directory, not
+        // the work tree. Without pinning this, a `-- notes.md` argument means
+        // something different depending on where the app happened to be
+        // launched from — and silently matches nothing when the app's cwd is a
+        // subdirectory of the project.
+        .current_dir(project)
         .env("GIT_DIR", shadow_dir(project))
         .env("GIT_WORK_TREE", project)
         // Keep the user's commit.gpgsign / hooks / templates out of it.
@@ -68,6 +74,7 @@ fn git(project: &Path, args: &[&str]) -> Result<String, String> {
 
 fn git_stdin(project: &Path, args: &[&str], input: &str) -> Result<String, String> {
     let mut child = Command::new("git")
+        .current_dir(project)
         .env("GIT_DIR", shadow_dir(project))
         .env("GIT_WORK_TREE", project)
         .env("GIT_CONFIG_NOSYSTEM", "1")
