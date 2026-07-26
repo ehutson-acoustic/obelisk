@@ -31,6 +31,7 @@ type Props = {
   onChange: (projects: Project[]) => void;
   onToggleCollapse: () => void;
   onOpenAppSettings: () => void;
+  onOpenProjectSettings: (project: Project) => void;
 };
 
 type Draft = { id: string | null; name: string; color: string; dir: string };
@@ -43,6 +44,7 @@ export function ProjectSidebar({
   onChange,
   onToggleCollapse,
   onOpenAppSettings,
+  onOpenProjectSettings,
 }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
 
@@ -126,7 +128,10 @@ export function ProjectSidebar({
                 >
                   Edit…
                 </ContextMenu.Item>
-                <ContextMenu.Item className="menu-item" disabled>
+                <ContextMenu.Item
+                  className="menu-item"
+                  onSelect={() => onOpenProjectSettings(p)}
+                >
                   Project settings…
                 </ContextMenu.Item>
                 <ContextMenu.Separator className="menu-sep" />

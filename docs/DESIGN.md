@@ -257,7 +257,11 @@ Appearance mode is deliberately app-only. Making it per-project means switching
 projects flips the whole app between light and dark, which reads as a bug.
 
 The settings UI marks each field as inherited or overridden, with a
-reset-to-default control.
+reset-to-default control. Granularity differs by kind: scalar settings are
+marked per field, while markdown styling is marked per **component** rather
+than per CSS property — tagging all five properties of all nine components
+individually would be forty-five badges for very little gain. Resetting a
+component drops the whole override for it and returns to the app default.
 
 ### 5.3 Theming
 

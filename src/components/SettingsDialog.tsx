@@ -1,6 +1,8 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { useState } from "react";
 import type { Appearance, AppSettings } from "../lib/appSettings";
+import { ThemeEditor } from "./ThemeEditor";
 
 const MODES: { value: Appearance; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "Light", icon: Sun },
@@ -21,33 +23,63 @@ export function SettingsDialog({
   onChange,
   onOpenChange,
 }: Props) {
+  const [tab, setTab] = useState<"appearance" | "markdown">("appearance");
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
-        <Dialog.Content className="dialog">
+        <Dialog.Content className="dialog wide">
           <Dialog.Title className="dialog-title">Settings</Dialog.Title>
 
-          <div className="field">
-            <span>Appearance</span>
-            <div className="mode-row">
-              {MODES.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  className={`mode-btn${settings.appearance === value ? " active" : ""}`}
-                  aria-pressed={settings.appearance === value}
-                  onClick={() => onChange({ ...settings, appearance: value })}
-                >
-                  <Icon size={18} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
+          <div className="tab-row" role="tablist">
+            <button
+              role="tab"
+              aria-selected={tab === "appearance"}
+              className={tab === "appearance" ? "active" : ""}
+              onClick={() => setTab("appearance")}
+            >
+              Appearance
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === "markdown"}
+              className={tab === "markdown" ? "active" : ""}
+              onClick={() => setTab("markdown")}
+            >
+              Markdown styling
+            </button>
           </div>
 
-          <p className="dialog-hint">
-            Markdown theming and per-component styles arrive in P4.
-          </p>
+          {tab === "appearance" ? (
+            <div className="field">
+              <span>Theme</span>
+              <div className="mode-row">
+                {MODES.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    className={`mode-btn${settings.appearance === value ? " active" : ""}`}
+                    aria-pressed={settings.appearance === value}
+                    onClick={() => onChange({ ...settings, appearance: value })}
+                  >
+                    <Icon size={18} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <ThemeEditor
+                settings={settings.editor}
+                onChange={(editor) => onChange({ ...settings, editor })}
+              />
+              <p className="dialog-hint">
+                These are the defaults. Any project can override them from its
+                own settings.
+              </p>
+            </>
+          )}
 
           <div className="dialog-actions">
             <button className="btn primary" onClick={() => onOpenChange(false)}>

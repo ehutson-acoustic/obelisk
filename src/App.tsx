@@ -26,6 +26,7 @@ import type { RefObject } from "react";
 import { CheckpointDialog } from "./components/CheckpointDialog";
 import { Editor } from "./components/Editor";
 import { FileBrowser } from "./components/FileBrowser";
+import { ProjectSettingsDialog } from "./components/ProjectSettingsDialog";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { TerminalView } from "./components/Terminal";
@@ -46,6 +47,12 @@ import {
   restoreCheckpoint,
 } from "./lib/checkpoints";
 import { checkpointTitle } from "./lib/checkpointTitle";
+import {
+  type EditorSettings,
+  mergeSettings,
+  type ProjectOverrides,
+  themeCss,
+} from "./lib/editorSettings";
 import { basename, dirname, isMarkdown, readFile, writeFile } from "./lib/files";
 import { addGitignoreEntry, needsGitignoreEntry } from "./lib/gitignore";
 import { loadProjectSettings } from "./lib/projectSettings";
@@ -64,8 +71,6 @@ import {
 } from "./types";
 
 const AUTOSAVE_MS = 1000;
-/** DESIGN §3.4 — periodic checkpoint while the buffer is dirty. */
-const DEFAULT_CHECKPOINT_MIN = 5;
 /** Terminal tab bar height; also the panel's collapsed size, so the bar
  *  (and its expand toggle) stays visible when the panel is closed. */
 const TERM_BAR_H = 32;
@@ -91,8 +96,11 @@ export default function App() {
   const [ckptBusy, setCkptBusy] = useState(false);
   const [ckptError, setCkptError] = useState<string | null>(null);
   const [ckptDialog, setCkptDialog] = useState({ open: false, suggestion: "" });
-  const [ckptIntervalMin, setCkptIntervalMin] = useState(DEFAULT_CHECKPOINT_MIN);
   const [gitignoreAsk, setGitignoreAsk] = useState<string | null>(null);
+  const [projectOverrides, setProjectOverrides] = useState<ProjectOverrides>({});
+  const [projectSettingsFor, setProjectSettingsFor] = useState<Project | null>(
+    null,
+  );
 
   const leftPanel = usePanelRef();
   const rightPanel = usePanelRef();
@@ -219,6 +227,24 @@ export default function App() {
     saveAppSettings(next);
   }, []);
 
+  /** App defaults with the active project's overrides applied (DESIGN §5.2). */
+  const editorSettings: EditorSettings = useMemo(
+    () => mergeSettings(appSettings.editor, projectOverrides),
+    [appSettings.editor, projectOverrides],
+  );
+
+  // Markdown styling is injected as a stylesheet rather than inline styles, so
+  // it applies to nodes ProseMirror creates and destroys as you type.
+  useEffect(() => {
+    let element = document.getElementById("md-theme");
+    if (!element) {
+      element = document.createElement("style");
+      element.id = "md-theme";
+      document.head.appendChild(element);
+    }
+    element.textContent = themeCss(editorSettings);
+  }, [editorSettings]);
+
   const toggle = (
     ref: RefObject<PanelImperativeHandle | null>,
     key: "leftCollapsed" | "rightCollapsed" | "terminalCollapsed",
@@ -244,8 +270,8 @@ export default function App() {
       setStatus("Select a project first");
       return;
     }
-    const settings = await loadProjectSettings(activeProject.dir);
     const id = crypto.randomUUID();
+    const startupCommand = editorSettings.terminalStartupCommand.trim();
     setSession((s) => ({
       ...s,
       terminals: [
@@ -254,12 +280,12 @@ export default function App() {
           id,
           title: `Terminal ${s.terminals.length + 1}`,
           cwd: activeProject.dir,
-          startupCommand: settings.terminalStartupCommand,
+          startupCommand: startupCommand || undefined,
         },
       ],
       activeTerminalId: id,
     }));
-  }, [activeProject]);
+  }, [activeProject, editorSettings.terminalStartupCommand]);
 
   const closeTerminal = useCallback((id: string) => {
     setSession((s) => {
@@ -404,12 +430,10 @@ export default function App() {
 
   useEffect(() => {
     if (!activeProject) {
-      setCkptIntervalMin(DEFAULT_CHECKPOINT_MIN);
+      setProjectOverrides({});
       return;
     }
-    loadProjectSettings(activeProject.dir).then((s) =>
-      setCkptIntervalMin(s.checkpointIntervalMinutes ?? DEFAULT_CHECKPOINT_MIN),
-    );
+    loadProjectSettings(activeProject.dir).then(setProjectOverrides);
   }, [activeProject]);
 
   const refreshCheckpoints = useCallback(async () => {
@@ -517,14 +541,14 @@ export default function App() {
           /* transient; the next tick tries again */
         }
       },
-      Math.max(1, ckptIntervalMin) * 60_000,
+      Math.max(1, editorSettings.checkpointIntervalMinutes) * 60_000,
     );
     return () => window.clearInterval(id);
   }, [
     activeProject,
     activePath,
     gitOk,
-    ckptIntervalMin,
+    editorSettings.checkpointIntervalMinutes,
     suggestTitle,
     refreshCheckpoints,
   ]);
@@ -714,6 +738,7 @@ export default function App() {
             onChange={(projects: Project[]) => patch({ projects })}
             onToggleCollapse={() => toggle(leftPanel, "leftCollapsed")}
             onOpenAppSettings={() => setSettingsOpen(true)}
+            onOpenProjectSettings={setProjectSettingsFor}
           />
         </Panel>
 
@@ -953,6 +978,18 @@ export default function App() {
         settings={appSettings}
         onChange={updateSettings}
         onOpenChange={setSettingsOpen}
+      />
+
+      <ProjectSettingsDialog
+        project={projectSettingsFor}
+        appEditor={appSettings.editor}
+        onClose={() => setProjectSettingsFor(null)}
+        onSaved={(overrides) => {
+          if (projectSettingsFor?.id === activeProject?.id) {
+            setProjectOverrides(overrides);
+          }
+          setStatus("Project settings saved");
+        }}
       />
 
       <CheckpointDialog

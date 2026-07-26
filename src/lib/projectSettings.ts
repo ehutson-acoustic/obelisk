@@ -1,26 +1,40 @@
 import { join } from "@tauri-apps/api/path";
-import { exists, readTextFile } from "@tauri-apps/plugin-fs";
+import {
+  exists,
+  mkdir,
+  readTextFile,
+  writeTextFile,
+} from "@tauri-apps/plugin-fs";
+import type { ProjectOverrides } from "./editorSettings";
 
 /**
- * DESIGN §5.2 — project settings are stored sparsely, so every field is
- * optional and an absent key means "inherit the app default". The settings UI
- * is P4; this loader exists now because the terminal needs the startup command.
+ * DESIGN §5.1/§5.2 — `.mdeditor/settings.json`, stored sparsely so absent keys
+ * inherit the app default. Only `.mdeditor/git/` is gitignored, so this file
+ * stays committable and project styling can be shared.
  */
-export type ProjectSettings = {
-  terminalStartupCommand?: string;
-  checkpointIntervalMinutes?: number;
-  theme?: string;
-};
+
+async function settingsPath(dir: string) {
+  return join(dir, ".mdeditor", "settings.json");
+}
 
 export async function loadProjectSettings(
   dir: string,
-): Promise<ProjectSettings> {
+): Promise<ProjectOverrides> {
   try {
-    const path = await join(dir, ".mdeditor", "settings.json");
+    const path = await settingsPath(dir);
     if (!(await exists(path))) return {};
     const parsed = JSON.parse(await readTextFile(path));
     return typeof parsed === "object" && parsed ? parsed : {};
   } catch {
     return {};
   }
+}
+
+export async function saveProjectSettings(
+  dir: string,
+  overrides: ProjectOverrides,
+): Promise<void> {
+  const path = await settingsPath(dir);
+  await mkdir(await join(dir, ".mdeditor"), { recursive: true });
+  await writeTextFile(path, `${JSON.stringify(overrides, null, 2)}\n`);
 }

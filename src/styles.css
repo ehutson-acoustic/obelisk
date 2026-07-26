@@ -845,6 +845,144 @@ button:focus-visible {
   flex: none;
 }
 
+.dialog.wide {
+  width: min(680px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.tab-row {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-row button {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab-row button.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- theme editor ------------------------------------------------------ */
+
+.theme-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.theme-editor select {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.theme-components {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.theme-component {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  text-align: left;
+}
+
+.theme-component:hover {
+  background: var(--bg-sunken);
+}
+
+.theme-component.active {
+  background: var(--bg-sunken);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.theme-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.theme-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.theme-fields input[type="color"] {
+  height: 30px;
+  padding: 2px;
+}
+
+.theme-preview {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow-wrap: anywhere;
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.badge,
+.inherit-tag {
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+}
+
+.inherit-tag.overridden {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  border-color: var(--accent);
+  cursor: pointer;
+}
+
 .mode-row {
   display: flex;
   gap: 8px;
