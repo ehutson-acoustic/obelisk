@@ -1,11 +1,6 @@
-import { join } from "@tauri-apps/api/path";
-import {
-  exists,
-  mkdir,
-  readTextFile,
-  writeTextFile,
-} from "@tauri-apps/plugin-fs";
-import type { ProjectOverrides } from "./editorSettings";
+import {join} from "@tauri-apps/api/path";
+import {exists, mkdir, readTextFile, writeTextFile,} from "@tauri-apps/plugin-fs";
+import type {ProjectOverrides} from "./editorSettings";
 
 /**
  * DESIGN §5.1/§5.2 — `.mdeditor/settings.json`, stored sparsely so absent keys
@@ -14,27 +9,27 @@ import type { ProjectOverrides } from "./editorSettings";
  */
 
 async function settingsPath(dir: string) {
-  return join(dir, ".mdeditor", "settings.json");
+    return join(dir, ".mdeditor", "settings.json");
 }
 
 export async function loadProjectSettings(
-  dir: string,
+    dir: string,
 ): Promise<ProjectOverrides> {
-  try {
-    const path = await settingsPath(dir);
-    if (!(await exists(path))) return {};
-    const parsed = JSON.parse(await readTextFile(path));
-    return typeof parsed === "object" && parsed ? parsed : {};
-  } catch {
-    return {};
-  }
+    try {
+        const path = await settingsPath(dir);
+        if (!(await exists(path))) return {};
+        const parsed = JSON.parse(await readTextFile(path));
+        return typeof parsed === "object" && parsed ? parsed : {};
+    } catch {
+        return {};
+    }
 }
 
 export async function saveProjectSettings(
-  dir: string,
-  overrides: ProjectOverrides,
+    dir: string,
+    overrides: ProjectOverrides,
 ): Promise<void> {
-  const path = await settingsPath(dir);
-  await mkdir(await join(dir, ".mdeditor"), { recursive: true });
-  await writeTextFile(path, `${JSON.stringify(overrides, null, 2)}\n`);
+    const path = await settingsPath(dir);
+    await mkdir(await join(dir, ".mdeditor"), {recursive: true});
+    await writeTextFile(path, `${JSON.stringify(overrides, null, 2)}\n`);
 }

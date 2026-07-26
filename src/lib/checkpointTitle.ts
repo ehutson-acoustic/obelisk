@@ -5,33 +5,33 @@
  */
 
 export type TitleInput = {
-  fileName: string;
-  /** Current buffer, used to locate the heading above the change. */
-  content: string;
-  /** Unified diff against the last checkpoint; empty for a new file. */
-  diff: string;
-  tracked: boolean;
+    fileName: string;
+    /** Current buffer, used to locate the heading above the change. */
+    content: string;
+    /** Unified diff against the last checkpoint; empty for a new file. */
+    diff: string;
+    tracked: boolean;
 };
 
 type DiffStats = { added: number; removed: number; firstLine: number | null };
 
 export function parseDiff(diff: string): DiffStats {
-  let added = 0;
-  let removed = 0;
-  let firstLine: number | null = null;
+    let added = 0;
+    let removed = 0;
+    let firstLine: number | null = null;
 
-  for (const line of diff.split("\n")) {
-    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-    if (hunk) {
-      if (firstLine === null) firstLine = Number(hunk[1]);
-      continue;
+    for (const line of diff.split("\n")) {
+        const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+        if (hunk) {
+            firstLine ??= Number(hunk[1]);
+            continue;
+        }
+        if (line.startsWith("+++") || line.startsWith("---")) continue;
+        if (line.startsWith("+")) added++;
+        else if (line.startsWith("-")) removed++;
     }
-    if (line.startsWith("+++") || line.startsWith("---")) continue;
-    if (line.startsWith("+")) added++;
-    else if (line.startsWith("-")) removed++;
-  }
 
-  return { added, removed, firstLine };
+    return {added, removed, firstLine};
 }
 
 /**
@@ -40,38 +40,38 @@ export function parseDiff(diff: string): DiffStats {
  * block isn't mistaken for a heading.
  */
 export function nearestHeading(content: string, line: number): string | null {
-  const lines = content.split("\n");
-  let inFence = false;
-  let heading: string | null = null;
+    const lines = content.split("\n");
+    let inFence = false;
+    let heading: string | null = null;
 
-  for (let i = 0; i < Math.min(line, lines.length); i++) {
-    const text = lines[i];
-    if (/^\s{0,3}(```|~~~)/.test(text)) {
-      inFence = !inFence;
-      continue;
+    for (let i = 0; i < Math.min(line, lines.length); i++) {
+        const text = lines[i];
+        if (/^\s{0,3}(```|~~~)/.test(text)) {
+            inFence = !inFence;
+            continue;
+        }
+        if (inFence) continue;
+        const match = /^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/.exec(text);
+        if (match) heading = match[1].trim();
     }
-    if (inFence) continue;
-    const match = /^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/.exec(text);
-    if (match) heading = match[1].trim();
-  }
 
-  return heading;
+    return heading;
 }
 
 export function checkpointTitle({
-  fileName,
-  content,
-  diff,
-  tracked,
-}: TitleInput): string {
-  if (!tracked) return `Add ${fileName}`;
+                                    fileName,
+                                    content,
+                                    diff,
+                                    tracked,
+                                }: TitleInput): string {
+    if (!tracked) return `Add ${fileName}`;
 
-  const { added, removed, firstLine } = parseDiff(diff);
-  const stats = `(+${added}/−${removed})`;
-  const heading =
-    firstLine === null ? null : nearestHeading(content, firstLine);
+    const {added, removed, firstLine} = parseDiff(diff);
+    const stats = `(+${added}/−${removed})`;
+    const heading =
+        firstLine === null ? null : nearestHeading(content, firstLine);
 
-  return heading
-    ? `Edit '${heading}' in ${fileName} ${stats}`
-    : `Edit ${fileName} ${stats}`;
+    return heading
+        ? `Edit '${heading}' in ${fileName} ${stats}`
+        : `Edit ${fileName} ${stats}`;
 }

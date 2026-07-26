@@ -1,4 +1,4 @@
-import { $nodeSchema, $remark } from "@milkdown/kit/utils";
+import {$nodeSchema, $remark} from "@milkdown/kit/utils";
 import remarkFrontmatter from "remark-frontmatter";
 
 /**
@@ -11,42 +11,42 @@ import remarkFrontmatter from "remark-frontmatter";
 // The "yaml" preset is required: $remark defaults missing options to `{}`,
 // which remark-frontmatter reads as a matter config and rejects.
 export const frontmatterRemark = $remark(
-  "frontmatter",
-  () => remarkFrontmatter,
-  "yaml",
+    "frontmatter",
+    () => remarkFrontmatter,
+    "yaml",
 );
 
 export const frontmatterSchema = $nodeSchema("frontmatter", () => ({
-  content: "text*",
-  group: "block",
-  marks: "",
-  code: true,
-  defining: true,
-  isolating: true,
-  parseDOM: [
-    {
-      tag: 'details[data-type="frontmatter"]',
-      preserveWhitespace: "full" as const,
+    content: "text*",
+    group: "block",
+    marks: "",
+    code: true,
+    defining: true,
+    isolating: true,
+    parseDOM: [
+        {
+            tag: "details[data-type=\"frontmatter\"]",
+            preserveWhitespace: "full" as const,
+        },
+    ],
+    toDOM: () => [
+        "details",
+        {"data-type": "frontmatter", class: "frontmatter"},
+        ["summary", {contenteditable: "false"}, "frontmatter"],
+        ["pre", ["code", {spellcheck: "false"}, 0]],
+    ],
+    parseMarkdown: {
+        match: ({type}) => type === "yaml",
+        runner: (state, node, proseType) => {
+            state.openNode(proseType);
+            if (typeof node.value === "string") state.addText(node.value);
+            state.closeNode();
+        },
     },
-  ],
-  toDOM: () => [
-    "details",
-    { "data-type": "frontmatter", class: "frontmatter" },
-    ["summary", { contenteditable: "false" }, "frontmatter"],
-    ["pre", ["code", { spellcheck: "false" }, 0]],
-  ],
-  parseMarkdown: {
-    match: ({ type }) => type === "yaml",
-    runner: (state, node, proseType) => {
-      state.openNode(proseType);
-      if (typeof node.value === "string") state.addText(node.value);
-      state.closeNode();
+    toMarkdown: {
+        match: (node) => node.type.name === "frontmatter",
+        runner: (state, node) => {
+            state.addNode("yaml", undefined, node.textContent);
+        },
     },
-  },
-  toMarkdown: {
-    match: (node) => node.type.name === "frontmatter",
-    runner: (state, node) => {
-      state.addNode("yaml", undefined, node.textContent);
-    },
-  },
 }));

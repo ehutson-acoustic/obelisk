@@ -7,9 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use md_editor_lib::checkpoints::{
-    create, create_from_content, list, restore, shadow_dir, status,
-};
+use md_editor_lib::checkpoints::{create, create_from_content, list, restore, shadow_dir, status};
 use tempfile::TempDir;
 
 fn project() -> TempDir {
@@ -150,11 +148,9 @@ fn content_checkpoint_skips_identical_content() {
     let file = write(dir.path(), "notes.md", "same\n");
     create(dir.path(), &file, "first").unwrap();
 
-    assert!(
-        create_from_content(dir.path(), &file, "same\n", "no-op")
-            .unwrap()
-            .is_none()
-    );
+    assert!(create_from_content(dir.path(), &file, "same\n", "no-op")
+        .unwrap()
+        .is_none());
     assert!(
         create_from_content(dir.path(), &file, "different\n", "real")
             .unwrap()
