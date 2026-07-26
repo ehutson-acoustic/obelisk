@@ -284,32 +284,45 @@ project theming can be shared with collaborators if desired.
 ## 6. Layout
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ file tabs                        [Checkpoint] [▶ right] │  header
-├──────────┬───────────────────────────────┬──────────────┤
-│ projects │ editor          [WYSIWYG|src] │ file browser │
-│  cards   │                               ├──────────────┤
-│          │                               │   versions   │
-│ [collapse]                               │              │
-│ [gear]   ├───────────────────────────────┴──────────────┤
-│          │ term 1 │ term 2 │ +              [collapse]  │  terminal
-├──────────┴──────────────────────────────────────────────┤
-│ /path/to/file.md                        [copy] [new]    │  footer
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ file tabs                         [Checkpoint] [▶ right] │ header
+├──────────┬────────────────────────────────┬──────────────┤
+│ projects │ editor           [WYSIWYG|src] │ file browser │
+│  cards   │                                ├──────────────┤
+│          │                                │   versions   │
+│          ├────────────────────────────────┤              │
+│          │ term 1 │ term 2 │ +  [collapse]│              │
+│[collapse]│                                │              │
+│ [gear]   ├────────────────────────────────┤              │
+│          │ /path/to/file.md   [copy] [new]│              │
+└──────────┴────────────────────────────────┴──────────────┘
+   sidebar          editor column              sidebar
+ (full height)  editor / terminal / footer  (full height)
 ```
 
-* **Left sidebar** — project cards. Collapses to a narrow rail; toggle sits just
-  above the settings gear, which is pinned to the bottom.
+* **Header** — spans the full width. Its file tabs are indented by the live
+  width of the left sidebar so they line up with the editor.
+
+* **Sidebars** — both are full-height columns running from under the header to
+  the bottom of the window. The editor, terminal and footer stack between them.
+
+* **Left sidebar** — project cards. Collapses to a 56px rail; toggle sits just
+  above the settings gear, which is pinned to the bottom. Both carry labels when
+  expanded and shrink to icons when collapsed.
 
 * **Right sidebar** — file browser on top, versions below, draggable divider
   between them. Collapses completely; toggle lives in the header bar.
 
-* **Terminal** — tabbed, `+` to the right of the tabs. The tab bar stays visible
-  when the panel is collapsed, because that is where the expand toggle lives.
-  Dragging the tab bar resizes the panel.
+* **Terminal** — tabbed, `+` to the right of the tabs. The tab bar lives inside
+  the panel and the panel's collapsed size equals the bar height, so the bar —
+  and its expand toggle — survives collapsing while every button stays
+  clickable. Resizing is a thin grip along the top edge only; making the whole
+  bar the drag handle was tried first and made the tabs and buttons awkward to
+  hit.
 
 * **Footer** — full file path, ellipsed on the left when too long, plus quick
   buttons to copy file contents and create a new file in the current folder.
+  Sits inside the editor column, between the sidebars.
 
 ### 6.1 Project cards
 

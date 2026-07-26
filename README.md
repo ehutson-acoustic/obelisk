@@ -71,18 +71,20 @@ cd src-tauri && cargo test
 ## Layout
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ file tabs                        [Checkpoint] [▶ right] │  header
-├──────────┬───────────────────────────────┬──────────────┤
-│ projects │ editor          [WYSIWYG|src] │ file browser │
-│  cards   │                               ├──────────────┤
-│          │                               │   versions   │
-│ [collapse]                               │              │
-│ [gear]   ├───────────────────────────────┴──────────────┤
-│          │ term 1 │ term 2 │ +              [collapse]  │  terminal
-├──────────┴──────────────────────────────────────────────┤
-│ /path/to/file.md                        [copy] [new]    │  footer
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ file tabs                         [Checkpoint] [▶ right] │ header
+├──────────┬────────────────────────────────┬──────────────┤
+│ projects │ editor           [WYSIWYG|src] │ file browser │
+│  cards   │                                ├──────────────┤
+│          │                                │   versions   │
+│          ├────────────────────────────────┤              │
+│          │ term 1 │ term 2 │ +  [collapse]│              │
+│[collapse]│                                │              │
+│ [gear]   ├────────────────────────────────┤              │
+│          │ /path/to/file.md   [copy] [new]│              │
+└──────────┴────────────────────────────────┴──────────────┘
+   sidebar          editor column              sidebar
+ (full height)  editor / terminal / footer  (full height)
 ```
 
 ## Configuration
