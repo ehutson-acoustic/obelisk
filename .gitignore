@@ -26,4 +26,7 @@ dist-ssr
 # Obelisk checkpoint history
 .obelisk/git/
 
+# Claude Code worktrees
+.claude/worktrees/
+
 

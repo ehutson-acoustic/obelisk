@@ -134,8 +134,8 @@ pub fn status(project: &Path, file: &Path) -> Result<CheckpointStatus, String> {
     ensure_repo(project)?;
     let rel = relative(project, file)?;
 
-    let tracked = has_head(project)
-        && git(project, &["cat-file", "-e", &format!("HEAD:{rel}")]).is_ok();
+    let tracked =
+        has_head(project) && git(project, &["cat-file", "-e", &format!("HEAD:{rel}")]).is_ok();
 
     // --porcelain covers modified *and* untracked in one call.
     let porcelain = git(project, &["status", "--porcelain", "--", &rel])?;
