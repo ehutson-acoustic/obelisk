@@ -2,6 +2,7 @@ import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as Dialog from "@radix-ui/react-dialog";
 import {open as openDialog} from "@tauri-apps/plugin-dialog";
 import {FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, Settings,} from "lucide-react";
+import type {Ref} from "react";
 import {useState} from "react";
 import {readableFg} from "../lib/contrast";
 import type {Project} from "../types";
@@ -18,6 +19,8 @@ const SWATCHES = [
 ];
 
 type Props = {
+    /** Lets App track the sidebar's live width, which the header tabs align to. */
+    hostRef?: Ref<HTMLDivElement>;
     projects: Project[];
     activeId: string | null;
     collapsed: boolean;
@@ -31,6 +34,7 @@ type Props = {
 type Draft = { id: string | null; name: string; color: string; dir: string };
 
 export function ProjectSidebar({
+                                   hostRef,
                                    projects,
                                    activeId,
                                    collapsed,
@@ -91,7 +95,7 @@ export function ProjectSidebar({
     const remove = (id: string) => onChange(projects.filter((p) => p.id !== id));
 
     return (
-        <div className={`project-sidebar${collapsed ? " collapsed" : ""}`}>
+        <div ref={hostRef} className={`project-sidebar${collapsed ? " collapsed" : ""}`}>
             <div className="project-list">
                 {projects.map((p) => (
                     <ContextMenu.Root key={p.id}>

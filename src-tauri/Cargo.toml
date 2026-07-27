@@ -12,7 +12,16 @@ edition = "2021"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "md_editor_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# ponytail: desktop-only, so `rlib` is all the bin needs. The template's
+# `staticlib` + `cdylib` exist for iOS/Android and cost ~900MB of duplicate
+# debug artifacts per build. Add them back if we ever target mobile.
+crate-type = ["rlib"]
+
+[profile.dev]
+# Full DWARF for the whole Tauri dependency tree is most of the 7GB in
+# target/debug/deps. Line tables still give file:line in backtraces and panics,
+# which is all we read. Set `debug = true` if you need to step in a debugger.
+debug = "line-tables-only"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

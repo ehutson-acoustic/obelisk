@@ -59,6 +59,19 @@ const SANS = "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif"
 const SERIF = "Georgia, \"Iowan Old Style\", \"Times New Roman\", serif";
 const MONO = "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace";
 
+/**
+ * The stacks the built-in presets are written in. Offered alongside the
+ * installed fonts so a component can be put back to a themed default after
+ * someone picks a specific face — otherwise these become unreachable the moment
+ * you change one.
+ */
+export const DEFAULT_FAMILIES: { label: string; value: string }[] = [
+    {label: "Inherit", value: "inherit"},
+    {label: "Default sans", value: SANS},
+    {label: "Default serif", value: SERIF},
+    {label: "Default mono", value: MONO},
+];
+
 /** Resolved styling every preset starts from. */
 export const BASE: Record<ComponentKey, ComponentStyle> = {
     body: {
@@ -260,16 +273,31 @@ export function forkToCustom(settings: EditorSettings): EditorSettings {
     return {...settings, preset: CUSTOM_PRESET, components: resolved};
 }
 
+/**
+ * Written against the DOM Crepe actually produces, which is not plain HTML:
+ * paragraphs carry their own size and line-height from Crepe's stylesheet, and
+ * code blocks are CodeMirror instances rather than `<pre>`. Every selector here
+ * has to out-specify Crepe's own rule for the same element.
+ */
 const SELECTORS: Record<ComponentKey, string> = {
-    body: ".milkdown .ProseMirror",
+    // The container alone would never reach body text (Crepe styles `p`
+    // directly) while still leaking its size into code blocks, which inherit.
+    body: ".milkdown .ProseMirror, .milkdown .ProseMirror p",
     h1: ".milkdown .ProseMirror h1",
     h2: ".milkdown .ProseMirror h2",
     h3: ".milkdown .ProseMirror h3",
     link: ".milkdown .ProseMirror a",
     inlineCode: ".milkdown .ProseMirror code:not(pre code)",
-    codeBlock: ".milkdown .ProseMirror pre, .milkdown .ProseMirror pre code",
-    blockquote: ".milkdown .ProseMirror blockquote",
-    list: ".milkdown .ProseMirror ul, .milkdown .ProseMirror ol",
+    // No `<pre>` exists — the block is a CodeMirror editor, with a plain
+    // element standing in until it mounts.
+    codeBlock:
+        ".milkdown .milkdown-code-block .cm-scroller," +
+        " .milkdown .milkdown-code-block .milkdown-code-block-placeholder",
+    // Both of these wrap paragraphs, so they need the extra element to beat the
+    // `p` half of the body rule.
+    blockquote:
+        ".milkdown .ProseMirror blockquote, .milkdown .ProseMirror blockquote p",
+    list: ".milkdown .ProseMirror li, .milkdown .ProseMirror li p",
 };
 
 const CSS_PROPS: Record<keyof ComponentStyle, string> = {

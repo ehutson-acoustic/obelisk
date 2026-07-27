@@ -1,4 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {invoke} from "@tauri-apps/api/core";
 import {watch} from "@tauri-apps/plugin-fs";
 import {
@@ -80,6 +81,8 @@ export default function App() {
     const termPanel = usePanelRef();
     const filesPanel = usePanelRef();
     const scrollHost = useRef<HTMLDivElement>(null);
+    const tabStrip = useRef<HTMLDivElement>(null);
+    const sidebarEl = useRef<HTMLDivElement>(null);
     /** Content of our own most recent write, so the watcher can ignore the echo. */
     const lastWrite = useRef<string | null>(null);
     const saveTimer = useRef<number | null>(null);
@@ -127,26 +130,23 @@ export default function App() {
 
     /**
      * The header spans the full width but its tabs should line up with the
-     * editor, so they're padded by the live width of the left sidebar. Written
-     * straight to a CSS variable to keep dragging smooth — going through React
-     * state would re-render the tree on every pointer move.
+     * editor, so they're offset by the live width of the left sidebar. Measured
+     * off the element itself, one task after the event: during a layout callback
+     * the panel handle still reports the width from *before* the collapse or
+     * expand, which left the offset one step behind and reading as though it
+     * were inverted. Written straight to a CSS variable to keep dragging smooth
+     * — React state would re-render the tree on every pointer move.
      */
     const syncLeftWidth = useCallback(() => {
-        let px: number | undefined;
-        try {
-            px = leftPanel.current?.getSize().inPixels;
-        } catch {
-            // The first onLayoutChange fires before the group finishes registering,
-            // and getSize() throws until it has. A later event will sync it.
-            return;
-        }
-        if (px != null) {
+        window.setTimeout(() => {
+            const el = sidebarEl.current;
+            if (!el) return;
             document.documentElement.style.setProperty(
                 "--left-w",
-                `${Math.round(px)}px`,
+                `${Math.round(el.getBoundingClientRect().width)}px`,
             );
-        }
-    }, [leftPanel]);
+        }, 0);
+    }, []);
 
     useEffect(() => {
         syncLeftWidth();
@@ -228,6 +228,7 @@ export default function App() {
         if (collapsed) p.expand();
         else p.collapse();
         patch({[key]: !collapsed} as Partial<Session>);
+        syncLeftWidth();
     };
 
     // ---- terminals -----------------------------------------------------------
@@ -324,6 +325,14 @@ export default function App() {
         if (scrollHost.current) scrollHost.current.scrollTop = saved ?? 0;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [revision]);
+
+    // With many files open the strip scrolls; keep the active tab reachable
+    // without hunting for it.
+    useEffect(() => {
+        tabStrip.current
+            ?.querySelector(".tab.active")
+            ?.scrollIntoView({block: "nearest", inline: "nearest"});
+    }, [activePath]);
 
     const closeFile = (path: string) => {
         setSession((s) => {
@@ -635,7 +644,7 @@ export default function App() {
     return (
         <div className="app">
             <header className="header">
-                <div className="tabs">
+                <div className="tabs" ref={tabStrip}>
                     {session.openFiles.map((f) => (
                         <div
                             key={f.path}
@@ -658,6 +667,43 @@ export default function App() {
                     ))}
                 </div>
                 <div className="header-actions">
+                    {/* ponytail: shown whenever anything is open rather than only when
+              the strip actually overflows — measuring that costs a resize
+              observer and a re-render, and a permanent list is easier to find
+              anyway. Gate it on overflow if the button starts feeling noisy. */}
+                    {session.openFiles.length > 0 && (
+                        <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                                <button className="icon-btn" title="Open files">
+                                    <ChevronDown size={16}/>
+                                </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                                <DropdownMenu.Content
+                                    className="menu file-menu"
+                                    align="end"
+                                    sideOffset={4}
+                                >
+                                    {session.openFiles.map((f) => (
+                                        <DropdownMenu.Item
+                                            key={f.path}
+                                            className={`menu-item file${f.path === activePath ? " active" : ""}`}
+                                            onSelect={() => patch({activeFilePath: f.path})}
+                                        >
+                                            <span className="menu-item-name">
+                                                {basename(f.path)}
+                                            </span>
+                                            {/* Two files can share a name, so the folder
+                          disambiguates them. */}
+                                            <span className="menu-item-dir">
+                                                {dirname(f.path)}
+                                            </span>
+                                        </DropdownMenu.Item>
+                                    ))}
+                                </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                        </DropdownMenu.Root>
+                    )}
                     <button
                         className="btn"
                         title={
@@ -705,6 +751,7 @@ export default function App() {
                     collapsedSize={56}
                 >
                     <ProjectSidebar
+                        hostRef={sidebarEl}
                         projects={session.projects}
                         activeId={session.activeProjectId}
                         collapsed={session.leftCollapsed}

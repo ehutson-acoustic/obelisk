@@ -148,6 +148,16 @@ describe("themeCss", () => {
         expect(css).not.toMatch(/^\s*body\s*\{/m);
     });
 
+    // Regression: body used to style only the container, which Crepe's own `p`
+    // rule beat, while still cascading into the CodeMirror-based code blocks —
+    // so "Body text" restyled code and nothing else.
+    it("targets paragraphs for body and CodeMirror for code blocks", () => {
+        const css = themeCss(app);
+        expect(css).toContain(".milkdown .ProseMirror p");
+        expect(css).toContain(".milkdown-code-block .cm-scroller");
+        expect(css).not.toContain(".ProseMirror pre");
+    });
+
     it("reflects per-component edits", () => {
         const css = themeCss({...app, components: {h1: {color: "#abcdef"}}});
         expect(css).toContain("color: #abcdef;");

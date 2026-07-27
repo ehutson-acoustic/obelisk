@@ -109,18 +109,20 @@ button:focus-visible {
     align-items: center;
     gap: 8px;
     height: 38px;
-    padding: 0 8px;
+    padding: 0 8px 0 0;
     border-bottom: 1px solid var(--border);
     background: var(--bg-raised);
 }
 
-/* Indent past the left sidebar so the first tab lines up with the editor. */
+/* Starts past the left sidebar (plus its 1px separator) so the first tab lines
+   up with the editor. A margin, not padding, so the strip never scrolls out
+   over the sidebar. */
 .tabs {
     display: flex;
     gap: 2px;
     flex: 1;
     min-width: 0;
-    padding-left: var(--left-w);
+    margin-left: calc(var(--left-w) + 1px);
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -345,8 +347,15 @@ button:focus-visible {
     padding: 4px 0 0 8px;
 }
 
+/* ponytail: xterm only ever renders whole rows, so up to one row of slack is
+   left over — it showed up as a gap between the last line and the footer. The
+   viewport is absolutely positioned, so bottom-aligning the one flow child
+   moves that slack above the scrollback, where nothing can be seen behind it. */
 .terminal-view .xterm {
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
 }
 
 .term-tab .tab-close {
@@ -842,9 +851,11 @@ button:focus-visible {
     flex: none;
 }
 
+/* Fixed height, not max-height, so the dialog doesn't resize as you switch
+   between tabs with different amounts of content. */
 .dialog.wide {
     width: min(680px, 94vw);
-    max-height: 88vh;
+    height: min(660px, 88vh);
     overflow-y: auto;
 }
 
@@ -1061,6 +1072,41 @@ button:focus-visible {
 
 .menu-item.danger {
     color: var(--danger);
+}
+
+/* Open-files menu: reaches every tab, including the ones scrolled out of the
+   strip. Scrolls itself once there are more files than fit on screen. */
+.file-menu {
+    max-width: 340px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.menu-item.file {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.menu-item.file.active {
+    color: var(--accent);
+}
+
+.menu-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ellipsis on the left so the containing folder stays visible (DESIGN §6). */
+.menu-item-dir {
+    font-size: 11px;
+    color: var(--fg-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
 }
 
 .menu-sep {

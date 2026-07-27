@@ -18,6 +18,67 @@ fn default_shell() -> String {
     }
 }
 
+/// Font families installed on this machine, de-duplicated and sorted.
+///
+/// ponytail: shells out instead of linking a font library. `fc-list` ships with
+/// every Linux desktop and PowerShell with every Windows; macOS only has
+/// fontconfig if the user installed it, so there it falls back to the families
+/// the OS ships with. Pull in the `font-kit` crate if that fallback starts
+/// mattering.
+#[tauri::command]
+fn system_fonts() -> Vec<String> {
+    use std::process::Command;
+
+    let output = if cfg!(windows) {
+        Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "(New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name }",
+            ])
+            .output()
+    } else {
+        // Restricted to outline faces that can actually set Latin text — the
+        // unfiltered list is mostly CJK and Indic families that would render a
+        // markdown document as tofu.
+        Command::new("fc-list")
+            .args([":lang=en:outline=true", "--format", "%{family[0]}\n"])
+            .output()
+    };
+
+    let mut families: Vec<String> = match output {
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|line| line.trim().to_string())
+            .filter(|line| !line.is_empty())
+            .collect(),
+        _ => MACOS_FALLBACK_FONTS.iter().map(|f| f.to_string()).collect(),
+    };
+
+    families.sort_by_key(|f| f.to_lowercase());
+    families.dedup_by_key(|f| f.to_lowercase());
+    families
+}
+
+/// Only reached when font enumeration fails, which in practice means macOS
+/// without fontconfig.
+const MACOS_FALLBACK_FONTS: &[&str] = &[
+    "Andale Mono",
+    "Arial",
+    "Avenir",
+    "Courier New",
+    "Georgia",
+    "Helvetica",
+    "Helvetica Neue",
+    "Menlo",
+    "Monaco",
+    "Optima",
+    "Palatino",
+    "SF Mono",
+    "Times New Roman",
+    "Verdana",
+];
+
 #[tauri::command]
 fn git_available() -> bool {
     checkpoints::git_available()
@@ -66,6 +127,7 @@ pub fn run() {
         .plugin(tauri_plugin_pty::init())
         .invoke_handler(tauri::generate_handler![
             default_shell,
+            system_fonts,
             git_available,
             checkpoint_status,
             checkpoint_create,
