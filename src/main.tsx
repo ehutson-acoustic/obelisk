@@ -18,7 +18,7 @@ class ErrorBoundary extends React.Component<
         if (!this.state.error) return this.props.children;
         return (
             <div className="crash">
-                <h1>md-editor hit an error</h1>
+                <h1>Obelisk hit an error</h1>
                 <pre>{this.state.error.stack ?? this.state.error.message}</pre>
             </div>
         );

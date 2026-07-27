@@ -644,6 +644,11 @@ export default function App() {
     return (
         <div className="app">
             <header className="header">
+                {/* Sits in the gap the tabs leave for the sidebar, taken out of
+                    flow so it can't shift the alignment they depend on. */}
+                <div className="brand" title="Obelisk" aria-hidden="true">
+                    ‡
+                </div>
                 <div className="tabs" ref={tabStrip}>
                     {session.openFiles.map((f) => (
                         <div
@@ -1034,12 +1039,12 @@ export default function App() {
                             Ignore checkpoint history?
                         </Dialog.Title>
                         <p className="dialog-text">
-                            This project is a git repository. md-editor keeps its checkpoint
-                            history in <code>.mdeditor/git/</code>, which you probably don't
+                            This project is a git repository. Obelisk keeps its checkpoint
+                            history in <code>.obelisk/git/</code>, which you probably don't
                             want to commit. Add it to this project's <code>.gitignore</code>?
                         </p>
                         <p className="dialog-hint">
-                            <code>.mdeditor/settings.json</code> stays tracked, so project
+                            <code>.obelisk/settings.json</code> stays tracked, so project
                             settings can still be shared.
                         </p>
                         <div className="dialog-actions">

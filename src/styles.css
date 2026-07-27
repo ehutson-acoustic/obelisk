@@ -112,6 +112,28 @@ button:focus-visible {
     padding: 0 8px 0 0;
     border-bottom: 1px solid var(--border);
     background: var(--bg-raised);
+    position: relative;
+}
+
+/* Absolute so it occupies no flex space: the tab strip's left margin is
+   measured off the sidebar, and a sibling in flow would push it out of line.
+   Fits the sidebar even when collapsed to its 56px rail. */
+.brand {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 15px;
+    line-height: 1;
+    user-select: none;
 }
 
 /* Starts past the left sidebar (plus its 1px separator) so the first tab lines

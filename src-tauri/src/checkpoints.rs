@@ -1,6 +1,6 @@
 //! Checkpoints as commits in a shadow git repo (DESIGN §3).
 //!
-//! The repo lives at `<project>/.mdeditor/git` with the project directory as
+//! The repo lives at `<project>/.obelisk/git` with the project directory as
 //! its work tree, so the user's own repository — its history, index, branches
 //! and remotes — is never touched.
 
@@ -30,16 +30,16 @@ pub struct CheckpointStatus {
 }
 
 /// Kept out of the shadow repo regardless of the project's own .gitignore.
-/// `.mdeditor` first and foremost, or the repo would track its own history.
+/// `.obelisk` first and foremost, or the repo would track its own history.
 const DEFAULT_EXCLUDES: &str = "\
-.mdeditor/
+.obelisk/
 node_modules/
 target/
 .venv/
 ";
 
 pub fn shadow_dir(project: &Path) -> PathBuf {
-    project.join(".mdeditor").join("git")
+    project.join(".obelisk").join("git")
 }
 
 pub fn git_available() -> bool {
@@ -117,8 +117,8 @@ pub fn ensure_repo(project: &Path) -> Result<(), String> {
     git(project, &["init", "--quiet"])?;
     // The shadow repo is the editor's own history, so give it an identity
     // rather than depending on the user having configured a global one.
-    git(project, &["config", "user.name", "md-editor"])?;
-    git(project, &["config", "user.email", "md-editor@localhost"])?;
+    git(project, &["config", "user.name", "Obelisk"])?;
+    git(project, &["config", "user.email", "obelisk@localhost"])?;
     git(project, &["config", "commit.gpgsign", "false"])?;
 
     std::fs::write(dir.join("info").join("exclude"), DEFAULT_EXCLUDES)

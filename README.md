@@ -1,4 +1,4 @@
-# md-editor
+# Obelisk
 
 A cross-platform Markdown editor with an integrated terminal, built for editing Markdown alongside a live Claude Code
 session.
@@ -20,7 +20,7 @@ clean buffer reloads automatically (after checkpointing what it replaced); a dir
 bar stays visible when the panel is collapsed; drag it to resize.
 
 **Checkpoints** — per-file version history in a shadow git repo at
-`.mdeditor/git`, so your project's own history stays clean. Checkpoints fire manually, before an external change lands
+`.obelisk/git`, so your project's own history stays clean. Checkpoints fire manually, before an external change lands
 on an open file, and periodically while the buffer is dirty (default 5 min). Titles are generated from the diff
 (`Edit 'Installation' in README.md (+12/−3)`) and are editable. Restore commits the current state first, then checks the
 old version forward — history stays linear, nothing is stranded.
@@ -28,7 +28,7 @@ old version forward — history stays linear, nothing is stranded.
 Inspect them with plain git:
 
 ```bash
-git --git-dir=.mdeditor/git --work-tree=. log
+git --git-dir=.obelisk/git --work-tree=. log
 ```
 
 **Session** — projects, open tabs, per-file cursor and scroll, panel sizes, collapse states, and terminal tabs all
@@ -79,13 +79,13 @@ cd src-tauri && cargo test
 
 ## Configuration
 
-* **App settings** — `settings.json` in the OS config dir (`~/.config/md-editor` on Linux). Currently: appearance
+* **App settings** — `settings.json` in the OS config dir (`~/.config/Obelisk` on Linux). Currently: appearance
   (light/dark/system).
-* **Project settings** — `.mdeditor/settings.json`, stored sparsely; absent keys inherit the app default. Currently,
+* **Project settings** — `.obelisk/settings.json`, stored sparsely; absent keys inherit the app default. Currently,
   read: `terminalStartupCommand`,
   `checkpointIntervalMinutes`, `theme`.
 
-md-editor offers once to add `.mdeditor/git/` to your project's `.gitignore`
+Obelisk offers once to add `.obelisk/git/` to your project's `.gitignore`
 and never edits it silently. `settings.json` stays committable.
 
 ## Stack

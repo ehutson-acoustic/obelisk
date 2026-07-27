@@ -1,4 +1,4 @@
-# md-editor — Design
+# Obelisk — Design
 
 A cross-platform Markdown editor with an integrated terminal, built for editing Markdown alongside a live Claude Code
 session.
@@ -115,7 +115,7 @@ frontmatter, which is the worst failure mode available in this app. Round-trips 
 
 ### 3.1 Shadow repository
 
-Checkpoints live in a **shadow repo** at `.mdeditor/git` — a separate
+Checkpoints live in a **shadow repo** at `.obelisk/git` — a separate
 `--git-dir` sharing the project directory as its `--work-tree`.
 
 The alternative was committing to the project's own repo, as originally specked. Rejected because most target folders
@@ -131,7 +131,7 @@ it honors the project's existing
 Checkpoints are inspectable with ordinary git:
 
 ```bash
-git --git-dir=.mdeditor/git --work-tree=. log
+git --git-dir=.obelisk/git --work-tree=. log
 ```
 
 Cost: checkpoints are local-only history and do not push to a remote.
@@ -209,10 +209,10 @@ The command is written into the interactive shell rather than exec'd, so the tab
 
 ### 5.1 Locations
 
-* **App defaults** — OS-appropriate config directory, resolved by Tauri (`~/.config/md-editor` on Linux,
+* **App defaults** — OS-appropriate config directory, resolved by Tauri (`~/.config/Obelisk` on Linux,
   `~/Library/Application Support/…` on macOS).
 
-* **Project overrides** — `.mdeditor/settings.json`, beside the shadow repo.
+* **Project overrides** — `.obelisk/settings.json`, beside the shadow repo.
 
 ### 5.2 Inheritance
 
@@ -245,7 +245,7 @@ editor.
 
 ### 5.4 .gitignore
 
-A one-time prompt before adding `.mdeditor/git/` to the project's real
+A one-time prompt before adding `.obelisk/git/` to the project's real
 `.gitignore`. Never edited silently.
 
 Only the `git/` subdirectory is ignored — `settings.json` stays committable, so project theming can be shared with

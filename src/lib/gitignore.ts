@@ -2,11 +2,11 @@ import {join} from "@tauri-apps/api/path";
 import {exists, readTextFile, writeTextFile} from "@tauri-apps/plugin-fs";
 
 /**
- * DESIGN §5.4 — only `.mdeditor/git/` is ignored, so `settings.json` stays
+ * DESIGN §5.4 — only `.obelisk/git/` is ignored, so `settings.json` stays
  * committable and project theming can be shared. Never written without asking.
  */
-const ENTRY = ".mdeditor/git/";
-const BLOCK = `\n# md-editor checkpoint history\n${ENTRY}\n`;
+const ENTRY = ".obelisk/git/";
+const BLOCK = `\n# Obelisk checkpoint history\n${ENTRY}\n`;
 
 /** True when the project is a real repo whose .gitignore lacks the entry. */
 export async function needsGitignoreEntry(projectDir: string): Promise<boolean> {
@@ -15,7 +15,7 @@ export async function needsGitignoreEntry(projectDir: string): Promise<boolean> 
         const path = await join(projectDir, ".gitignore");
         if (!(await exists(path))) return true;
         const text = await readTextFile(path);
-        return !/^\s*\.mdeditor\/(git\/?)?\s*$/m.test(text);
+        return !/^\s*\.obelisk\/(git\/?)?\s*$/m.test(text);
     } catch {
         return false;
     }

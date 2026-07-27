@@ -23,7 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# md-editor checkpoint history
-.mdeditor/git/
+# Obelisk checkpoint history
+.obelisk/git/
 
 

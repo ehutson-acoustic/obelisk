@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use md_editor_lib::checkpoints::{create, create_from_content, list, restore, shadow_dir, status};
+use obelisk_lib::checkpoints::{create, create_from_content, list, restore, shadow_dir, status};
 use tempfile::TempDir;
 
 fn project() -> TempDir {
@@ -290,7 +290,7 @@ fn never_tracks_its_own_shadow_directory() {
         .unwrap();
     let out = String::from_utf8_lossy(&tracked.stdout);
     assert!(
-        !out.contains(".mdeditor"),
+        !out.contains(".obelisk"),
         "shadow repo must ignore itself, saw: {out}"
     );
 }

@@ -74,7 +74,7 @@ export function ProjectSettingsDialog({
                         {project?.name} settings
                     </Dialog.Title>
                     <div className="dialog-hint">
-                        Saved sparsely to <code>.mdeditor/settings.json</code> — only what
+                        Saved sparsely to <code>.obelisk/settings.json</code> — only what
                         differs from your app defaults.
                     </div>
 
