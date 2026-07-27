@@ -347,15 +347,17 @@ button:focus-visible {
     padding: 4px 0 0 8px;
 }
 
-/* ponytail: xterm only ever renders whole rows, so up to one row of slack is
-   left over — it showed up as a gap between the last line and the footer. The
-   viewport is absolutely positioned, so bottom-aligning the one flow child
-   moves that slack above the scrollback, where nothing can be seen behind it. */
 .terminal-view .xterm {
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+}
+
+/* xterm renders whole rows only, so up to a row of slack is left over — and it
+   paints the theme background on the scrollable element, which is exactly as
+   tall as those rows, leaving the slack showing the viewport's stock black.
+   That black band was the "gap" above the footer. Must stay in step with the
+   `background` in xtermTheme() (lib/theme.ts). */
+.terminal-view .xterm-viewport {
+    background-color: var(--term-bg);
 }
 
 .term-tab .tab-close {
@@ -791,14 +793,19 @@ button:focus-visible {
 
 /* ---- radix overlays ---------------------------------------------------- */
 
+/* Portalled layers land at the end of <body> with no z-index of their own, so
+   the editor's sticky mode toggle (z-index 5) painted over them. Anything
+   floating above the page belongs on this scale. */
 .overlay {
     position: fixed;
     inset: 0;
+    z-index: 100;
     background: rgb(0 0 0 / 35%);
 }
 
 .dialog {
     position: fixed;
+    z-index: 101;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -1043,7 +1050,9 @@ button:focus-visible {
     padding: 2px;
 }
 
+/* Above .dialog, so a menu opened from inside one still lands on top. */
 .menu {
+    z-index: 102;
     min-width: 180px;
     padding: 4px;
     border-radius: 8px;
