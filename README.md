@@ -36,7 +36,7 @@ restore on launch.
 
 ## Requirements
 
-* Node 22+ and pnpm
+* Node 22.12+ and pnpm 10 (`corepack enable pnpm` picks up the version pinned in `package.json`)
 * Rust 1.94+
 * `git` on `PATH` (checkpoints are disabled with a notice if it's missing)
 * Linux or macOS. Windows isn't targeted; the PTY layer is where it would need work.
@@ -47,16 +47,52 @@ Verified on Ubuntu 24.04 with webkit2gtk 4.1.
 
 ```bash
 pnpm install
-pnpm tauri dev     # run the app
+pnpm dev           # run the app
 pnpm test          # vitest unit tests
-pnpm tauri build   # bundle
+pnpm build         # bundle for the current platform
 ```
 
-Rust integration tests live in `src-tauri/tests` and cover the checkpoint → edit → restore → verify path:
+### All scripts
+
+| Script | What it does |
+| --- | --- |
+| `pnpm dev` | Run the app (Tauri + Vite with HMR) |
+| `pnpm dev:web` | Vite alone in a browser — UI work without waiting on Rust |
+| `pnpm build` | Bundle for the current platform |
+| `pnpm build:web` | Typecheck and build the frontend only |
+| `pnpm test` | Vitest unit tests, single run |
+| `pnpm test:watch` | Vitest in watch mode |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm rust:fmt` | Format the Rust sources |
+| `pnpm rust:fmt:check` | Fail if Rust sources need formatting |
+| `pnpm rust:clippy` | Clippy with warnings denied |
+| `pnpm rust:test` | Rust integration tests |
+| `pnpm check` | Everything CI runs, in one command |
+| `pnpm clean` | Remove `dist`, the Vite cache, and `src-tauri/target` |
+
+Run `pnpm check` before opening a PR — it runs the same gates as CI.
+
+Rust integration tests live in `src-tauri/tests` and cover the checkpoint → edit → restore → verify path.
+`pnpm rust:test` runs them from the repo root; `cd src-tauri && cargo test` also works.
+
+## Releases
+
+`.github/workflows/ci.yml` runs typecheck, Vitest, `cargo fmt --check`, Clippy, and the Rust tests on every
+push to `main` and every PR.
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which bundles macOS (universal `.dmg`) and Linux
+(`.deb` + `.AppImage`) and attaches them to a **draft** GitHub Release:
 
 ```bash
-cd src-tauri && cargo test
+git tag v0.1.0 && git push origin v0.1.0
 ```
+
+Review the draft and publish it manually. `workflow_dispatch` builds the same bundles as downloadable
+artifacts without creating a release.
+
+Per-platform bundle targets live in `src-tauri/tauri.linux.conf.json` and `src-tauri/tauri.macos.conf.json`,
+which Tauri merges over `tauri.conf.json`. macOS bundles are currently **unsigned and un-notarized**, so
+Gatekeeper will warn on first open; `release.yml` has the signing env vars stubbed out ready to enable.
 
 ## Layout
 
