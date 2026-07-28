@@ -17,6 +17,7 @@ import {
 import type {RefObject} from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Group, type Layout, Panel, type PanelImperativeHandle, Separator, usePanelRef,} from "react-resizable-panels";
+import {BrandMark} from "./components/BrandMark";
 import {CheckpointDialog} from "./components/CheckpointDialog";
 import {Editor} from "./components/Editor";
 import {FileBrowser} from "./components/FileBrowser";
@@ -646,8 +647,8 @@ export default function App() {
             <header className="header">
                 {/* Sits in the gap the tabs leave for the sidebar, taken out of
                     flow so it can't shift the alignment they depend on. */}
-                <div className="brand" title="Obelisk" aria-hidden="true">
-                    ‡
+                <div className="brand" title="Obelisk">
+                    <BrandMark/>
                 </div>
                 <div className="tabs" ref={tabStrip}>
                     {session.openFiles.map((f) => (

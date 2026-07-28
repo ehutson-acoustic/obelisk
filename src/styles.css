@@ -128,11 +128,6 @@ button:focus-visible {
     justify-content: center;
     width: 24px;
     height: 24px;
-    border: 1px solid var(--accent);
-    border-radius: 6px;
-    color: var(--accent);
-    font-size: 15px;
-    line-height: 1;
     user-select: none;
 }
 
