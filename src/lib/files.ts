@@ -18,17 +18,21 @@ export function dirname(path: string): string {
     return parts.join("/");
 }
 
-/** One level only — the browser loads children lazily as folders are expanded. */
+/**
+ * One level only — the browser loads children lazily as folders are expanded.
+ *
+ * Nothing is filtered out, dot-entries included: `.claude/`, `.github/` and
+ * `.obelisk/settings.json` are all files you come here to edit, and DESIGN §1.3 already rules
+ * that nothing in the app treats dot-directories as hidden.
+ */
 export async function listDir(dir: string): Promise<FileNode[]> {
     const entries = await readDir(dir);
     const nodes = await Promise.all(
-        entries
-            .filter((e) => !e.name.startsWith("."))
-            .map(async (e) => ({
-                name: e.name,
-                path: await join(dir, e.name),
-                isDir: e.isDirectory,
-            })),
+        entries.map(async (e) => ({
+            name: e.name,
+            path: await join(dir, e.name),
+            isDir: e.isDirectory,
+        })),
     );
     return nodes.sort((a, b) =>
         a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,

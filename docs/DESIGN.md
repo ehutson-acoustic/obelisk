@@ -284,6 +284,11 @@ collaborators if desired.
 * **Right sidebar** — file browser on top, versions below, draggable divider between them. Collapses completely; toggle
   lives in the header bar.
 
+  The tree lists everything in the directory, with no exclusions — dot-entries included, since `.claude/`, `.github/`,
+  `.gitignore` and `.obelisk/settings.json` are all things you edit from here, consistent with §1.3. Hiding `.git/` and
+  the shadow repo was tried and rejected: any exclusion list makes the tree lie about what is on disk, which matters
+  most in exactly the case where you went looking for a file the agent wrote.
+
 * **Terminal** — tabbed, `+` to the right of the tabs. The tab bar lives inside the panel and the panel's collapsed size
   equals the bar height, so the bar — and its expand toggle — survives collapsing while every button stays clickable.
   Resizing is a thin grip along the top edge only; making the whole bar the drag handle was tried first and made the
