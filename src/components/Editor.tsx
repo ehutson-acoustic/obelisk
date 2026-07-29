@@ -280,12 +280,12 @@ function Source({
 
     useEffect(() => {
         if (!host.current) return;
+        const startAt =
+            cursor == null ? null : Math.min(Math.max(cursor, 0), value.length);
         const state = EditorState.create({
             doc: value,
             selection:
-                cursor == null
-                    ? undefined
-                    : EditorSelection.cursor(Math.min(Math.max(cursor, 0), value.length)),
+                startAt == null ? undefined : EditorSelection.cursor(startAt),
             extensions: [
                 basicSetup,
                 markdown(),
@@ -317,6 +317,17 @@ function Source({
         const view = new EditorView({state, parent: host.current});
         viewRef.current = view;
         onFindApiRef.current(codeFindApi(view));
+        // CodeMirror does not scroll to a selection handed to it at construction,
+        // so a restored cursor deep in the file left the document at the top with
+        // the active line highlighted somewhere out of sight. Most visible when
+        // opening a search hit (DESIGN §8.2). Centred rather than merely revealed
+        // so the match lands where the eye already is. Dispatched after the view
+        // exists because it needs real measured line heights.
+        if (startAt != null) {
+            view.dispatch({
+                effects: EditorView.scrollIntoView(startAt, {y: "center"}),
+            });
+        }
         return () => {
             onFindApiRef.current(null);
             viewRef.current = null;
