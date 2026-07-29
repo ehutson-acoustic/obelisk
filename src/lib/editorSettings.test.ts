@@ -154,16 +154,17 @@ describe("paletteCss", () => {
         expect(paletteCss(app)).toContain("color-scheme: dark");
     });
 
-    it("scales the measure with the zoom, keeping line length in characters", () => {
-        expect(paletteCss({...app, theme: "paper"})).toContain(
-            "--content-width: calc(34rem * var(--editor-zoom, 1))",
-        );
-    });
-
-    it("lets a theme opt out of a measure entirely", () => {
-        expect(paletteCss({...app, theme: "obelisk"})).toContain(
-            "--content-width: none",
-        );
+    /**
+     * A theme may not constrain the editor's width. Every theme fills the panel
+     * exactly as the original does (DESIGN §5.3) — a per-theme measure was tried
+     * and removed, so no theme may reintroduce one through this stylesheet.
+     */
+    it("never constrains the editor width", () => {
+        for (const id of Object.keys(THEMES)) {
+            const css = paletteCss({...app, theme: id});
+            expect(css).not.toContain("--content-width");
+            expect(css).not.toContain("max-width");
+        }
     });
 });
 

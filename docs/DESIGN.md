@@ -283,7 +283,7 @@ and future changes to defaults flow through to existing projects automatically.
 | App-only            | theme, light / dark / system mode, markdown styling, zoom, layout sizes |
 
 **Styling used to be project-overridable and no longer is.** The reasoning that made appearance mode app-only turned out
-to apply to the whole look: switching projects changed the app's fonts, colours and measure, which read as a bug rather
+to apply to the whole look: switching projects changed the app's fonts and colours, which read as a bug rather
 than a feature. Removing it also took out the per-component merge and the sparse-diffing of `components`, leaving two
 scalars — and the terminal startup command is the one setting that is genuinely per-project, since a project is exactly
 the thing that determines what should run in its terminal.
@@ -292,13 +292,18 @@ The remaining two fields are marked as inherited or overridden with a reset-to-d
 
 ### 5.3 Themes
 
-A **theme** is the whole look: a light palette, a dark palette, a typography baseline, and a content measure. Theme and
-light/dark/system are independent — every theme defines both modes, so choosing one never changes the other.
+A **theme** is the whole look: a light palette, a dark palette, and a typography baseline. Theme and light/dark/system
+are independent — every theme defines both modes, so choosing one never changes the other.
+
+A theme does **not** control the editor's width. Every theme fills the editor panel, exactly as the original does. Themes
+briefly carried a per-theme measure (`contentWidth`), on the reasoning that a narrow column is part of what makes a theme
+like Paper feel like paper. In use that was simply wrong: a column occupying part of a panel you deliberately sized reads
+as the editor failing to fill its space, not as typography. It was removed, and `paletteCss` has a test asserting no
+theme can reintroduce one.
 
 This replaced an earlier "preset" concept that covered typography only. Presets could not express a theme like Paper,
-which is warm paper-coloured ground *and* a serif *and* a narrow measure; picking a "Paper" preset and getting only the
-serif made the feature feel broken. Folding colours, type and measure into one named thing removed a concept rather than
-adding one.
+which is warm paper-coloured ground *and* a serif; picking a "Paper" preset and getting only the serif made the feature
+feel broken. Folding colours and type into one named thing removed a concept rather than adding one.
 
 Six ship: **Obelisk** (the original neutral greys), **Paper**, **Focus** (near-monochrome, the distraction-free one),
 **Calm**, **Contrast**, **Ink**.
@@ -400,8 +405,7 @@ element. Nine discrete steps (67% → 200%), clamped, persisted app-wide in `ses
 when it changes.
 
 Every absolute font size the theme emits is written as `calc(<size> * var(--editor-zoom))`, so zooming is one variable
-write with no restyling pass of our own. The theme's measure (§5.3) is scaled by the same factor, which keeps line length
-in *characters* steady — a fixed column would shorten every line as the text grew.
+write with no restyling pass of our own.
 
 Images and app chrome deliberately do not scale: the ask was for the prose to grow, and a mode toggle that grows with it
 looks like a bug.

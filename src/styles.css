@@ -1026,13 +1026,6 @@ button:focus-visible {
     min-height: 100%;
 }
 
-/* The theme's measure (DESIGN §5.3). `none` for themes that want the full
-   width, which is why this is a max-width rather than a width. */
-.crepe-host {
-    max-width: var(--content-width, none);
-    margin: 0 auto;
-}
-
 .cm-host .cm-editor {
     height: 100%;
 }

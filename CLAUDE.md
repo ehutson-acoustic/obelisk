@@ -117,9 +117,9 @@ destroys the user's writing or their staged work, so extend those tests with any
 
 ### Theming
 
-A **theme** (`THEMES` in `editorSettings.ts`) is a light palette, a dark palette, a typography baseline, and a content
-measure — see `DESIGN §5.3`. Three DOM-level mechanisms, all generated as stylesheet text and injected via
-`injectStyle()`:
+A **theme** (`THEMES` in `editorSettings.ts`) is a light palette, a dark palette, and a typography baseline — see
+`DESIGN §5.3`. A theme deliberately does *not* control the editor's width; every theme fills the panel. Three DOM-level
+mechanisms, all generated as stylesheet text and injected via `injectStyle()`:
 
 * Markdown styling → `<style id="md-theme">` from `themeCss()` — not inline styles, since ProseMirror creates and
   destroys nodes as you type. The selectors are written against the DOM Crepe actually produces (code blocks are

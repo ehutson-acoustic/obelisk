@@ -174,11 +174,6 @@ export type ThemeDef = {
     description: string;
     /** Typography baseline, layered over `BASE`. */
     components: ComponentMap;
-    /**
-     * Max width of the editor column. A measure is part of what distinguishes
-     * these themes — Paper is not paper at full window width.
-     */
-    contentWidth: string;
     light: Palette;
     dark: Palette;
 };
@@ -192,7 +187,6 @@ export const THEMES: Record<string, ThemeDef> = {
         label: "Obelisk",
         description: "Neutral greys with a green accent.",
         components: {},
-        contentWidth: "none",
         light: {
             bg: "#ffffff",
             bgSunken: "#f4f5f7",
@@ -236,7 +230,6 @@ export const THEMES: Record<string, ThemeDef> = {
             blockquote: {fontFamily: SERIF},
             list: {lineHeight: "1.75"},
         },
-        contentWidth: "34rem",
         light: {
             bg: "#faf6ef",
             bgSunken: "#f2ece1",
@@ -278,7 +271,6 @@ export const THEMES: Record<string, ThemeDef> = {
             list: {lineHeight: "1.85"},
             blockquote: {lineHeight: "1.85"},
         },
-        contentWidth: "40rem",
         light: {
             bg: "#ffffff",
             bgSunken: "#f7f7f7",
@@ -319,7 +311,6 @@ export const THEMES: Record<string, ThemeDef> = {
             list: {lineHeight: "1.85"},
             blockquote: {lineHeight: "1.85"},
         },
-        contentWidth: "42rem",
         light: {
             bg: "#f4f7f5",
             bgSunken: "#e9efeb",
@@ -358,7 +349,6 @@ export const THEMES: Record<string, ThemeDef> = {
             h2: {fontWeight: "700"},
             h3: {fontWeight: "700"},
         },
-        contentWidth: "46rem",
         light: {
             bg: "#ffffff",
             bgSunken: "#f0f0f0",
@@ -399,7 +389,6 @@ export const THEMES: Record<string, ThemeDef> = {
             h3: {fontFamily: MONO, fontSize: "17px", fontWeight: "600"},
             list: {lineHeight: "1.65"},
         },
-        contentWidth: "38rem",
         light: {
             bg: "#f7f9fb",
             bgSunken: "#eef2f6",
@@ -605,7 +594,7 @@ const PALETTE_VARS: Record<keyof Palette, string> = {
 };
 
 /**
- * The active theme's palette plus its measure, as `:root[data-theme=…]` rules.
+ * The active theme's palette, as `:root[data-theme=…]` rules.
  *
  * Both modes are emitted under an attribute selector deliberately: `styles.css`
  * declares its own defaults on a bare `:root` (light) and `:root[data-theme="dark"]`,
@@ -622,12 +611,5 @@ export function paletteCss(settings: EditorSettings): string {
             .join("\n");
         return `:root[data-theme="${mode}"] {\n${vars}\n  color-scheme: ${mode};\n}`;
     };
-    // The measure tracks the zoom so the line length in *characters* holds
-    // steady; a fixed column would shorten every line as the text grew.
-    const measure =
-        theme.contentWidth === "none"
-            ? ":root { --content-width: none; }"
-            : `:root { --content-width: calc(${theme.contentWidth} * var(--editor-zoom, 1)); }`;
-
-    return [block("light"), block("dark"), measure].join("\n\n");
+    return [block("light"), block("dark")].join("\n\n");
 }

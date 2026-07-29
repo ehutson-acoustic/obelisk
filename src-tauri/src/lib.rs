@@ -178,15 +178,14 @@ pub fn run() {
             checkpoint_create,
             checkpoint_from_content,
             checkpoint_list,
-            checkpoint_restore,
-            search_project
             checkpoint_content,
             repo_state,
             branch_list,
             branch_switch,
             branch_create,
             branch_track,
-            git_stash
+            git_stash,
+            search_project
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
