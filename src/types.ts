@@ -50,6 +50,10 @@ export type Session = {
     activeTerminalId: string | null;
     /** Project ids already asked about the .gitignore entry — asked once only. */
     gitignorePrompted: string[];
+    /** Editor text scale (DESIGN §7). App-wide, not per file. */
+    editorZoom: number;
+    /** Which of the two stacked right-panel views is showing. */
+    sidePanel: "files" | "search";
     layouts: Record<string, PanelLayout>;
 };
 
@@ -65,6 +69,8 @@ export const DEFAULT_SESSION: Session = {
     terminals: [],
     activeTerminalId: null,
     gitignorePrompted: [],
+    editorZoom: 1,
+    sidePanel: "files",
     layouts: {
         outer: {left: 18, center: 56, right: 26},
         center: {editor: 70, terminal: 30},

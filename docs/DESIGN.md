@@ -219,26 +219,49 @@ The command is written into the interactive shell rather than exec'd, so the tab
 Project settings are stored **sparsely** — only keys that differ from app defaults. The file stays small and readable,
 and future changes to defaults flow through to existing projects automatically.
 
-| Scope               | Settings                                                                            |
-|---------------------|-------------------------------------------------------------------------------------|
-| Project-overridable | markdown theme, per-component styles, checkpoint interval, terminal startup command |
-| App-only            | light / dark / system mode, layout sizes                                            |
+| Scope               | Settings                                                        |
+|---------------------|-----------------------------------------------------------------|
+| Project-overridable | checkpoint interval, terminal startup command                   |
+| App-only            | theme, light / dark / system mode, markdown styling, zoom, layout sizes |
 
-Appearance mode is deliberately app-only. Making it per-project means switching projects flips the whole app between
-light and dark, which reads as a bug.
+**Styling used to be project-overridable and no longer is.** The reasoning that made appearance mode app-only turned out
+to apply to the whole look: switching projects changed the app's fonts, colours and measure, which read as a bug rather
+than a feature. Removing it also took out the per-component merge and the sparse-diffing of `components`, leaving two
+scalars — and the terminal startup command is the one setting that is genuinely per-project, since a project is exactly
+the thing that determines what should run in its terminal.
 
-The settings UI marks each field as inherited or overridden, with a reset-to-default control. Granularity differs by
-kind: scalar settings are marked per field, while Markdown styling is marked per **component** rather than per CSS
-property — tagging all five properties of all nine components individually would be forty-five badges for very little
-gain. Resetting a component drops the whole override for it and returns to the app default.
+The remaining two fields are marked as inherited or overridden with a reset-to-default control.
 
-### 5.3 Theming
+### 5.3 Themes
 
-A theme is a named set of CSS variable values, since that is how Crepe styles everything.
+A **theme** is the whole look: a light palette, a dark palette, a typography baseline, and a content measure. Theme and
+light/dark/system are independent — every theme defines both modes, so choosing one never changes the other.
 
-Per-component editing covers a **fixed component list** — body, h1–h3, links, inline code, code blocks, blockquote,
-lists — each exposing font family, size, weight, color, and line-height. Editing a shipped preset forks it into
-"Custom".
+This replaced an earlier "preset" concept that covered typography only. Presets could not express a theme like Paper,
+which is warm paper-coloured ground *and* a serif *and* a narrow measure; picking a "Paper" preset and getting only the
+serif made the feature feel broken. Folding colours, type and measure into one named thing removed a concept rather than
+adding one.
+
+Six ship: **Obelisk** (the original neutral greys), **Paper**, **Focus** (near-monochrome, the distraction-free one),
+**Calm**, **Contrast**, **Ink**.
+
+Palettes are applied by generating `:root[data-theme="light"]` and `:root[data-theme="dark"]` blocks into a `<style>`
+element. The attribute form is load-bearing: `styles.css` declares its own defaults on a bare `:root` plus
+`:root[data-theme="dark"]`, and matching the attribute is what makes the theme win in both directions.
+
+The twelve palettes are held to contrast floors by tests — WCAG AAA (7:1) for body text, AA (4.5:1) for muted text and
+accents, checked against `bg`, `bgSunken` and `bgRaised`. Hand-picked colour data across six themes is exactly what rots
+unnoticed, and a theme that fails these is unusable rather than merely ugly. The check found one real failure on the
+original palette, whose muted grey measured 4.43:1 against the sunken surface; it was darkened one step.
+
+The terminal takes its ground, foreground and cursor from the active theme, but the **sixteen ANSI colours stay keyed to
+light/dark only**. Programs assign those meanings — red is an error, green a pass — so re-tinting them per theme would
+trade a real signal for a cosmetic one.
+
+Per-component editing sits on top of the theme, over a **fixed component list** — body, h1–h3, links, inline code, code
+blocks, blockquote, lists — each exposing font family, size, weight, color, and line-height. Edits are stored as
+overrides rather than forking the theme, so switching themes keeps them and resetting a component returns it to the
+theme's own value.
 
 Bounded on purpose. A full CSS property inspector is a project of its own and the easiest way to produce an unreadable
 editor.
@@ -309,7 +332,73 @@ disk.
 
 ***
 
-## 7. Session persistence
+## 7. Zoom
+
+`Ctrl`/`Cmd` `+` / `-` / `0` scales the **editor text only**, through a single `--editor-zoom` multiplier on the root
+element. Nine discrete steps (67% → 200%), clamped, persisted app-wide in `session.json`, and flashed in the status line
+when it changes.
+
+Every absolute font size the theme emits is written as `calc(<size> * var(--editor-zoom))`, so zooming is one variable
+write with no restyling pass of our own. The theme's measure (§5.3) is scaled by the same factor, which keeps line length
+in *characters* steady — a fixed column would shorten every line as the text grew.
+
+Images and app chrome deliberately do not scale: the ask was for the prose to grow, and a mode toggle that grows with it
+looks like a bug.
+
+CSS `zoom` on the editor panel would have been one property instead of all this. Rejected because it is a known source of
+coordinate drift in CodeMirror — clicks landing a character off in source mode. The variable approach has its own cost:
+CodeMirror caches character metrics and cannot observe a CSS-driven font change, so `Source` calls `requestMeasure()`
+whenever the zoom changes. Without that the cursor stays calibrated to the old size.
+
+***
+
+## 8. Find
+
+### 8.1 In the current file
+
+One find/replace bar above the editor, identical in both modes: `Cmd/Ctrl+F` to find, `Cmd/Ctrl+H` for replace,
+`Enter`/`Shift+Enter` to step, a match count, case / whole-word / regex toggles, and `Esc` to close.
+
+Two backends behind one interface (`lib/find.ts`), because the two editors share nothing: `prosemirror-search` for
+WYSIWYG and `@codemirror/search` for source. Both are first-party for their editor and their `SearchQuery` shapes line up
+almost exactly, which is what makes a single bar cheap rather than a project. Each view publishes a `FindApi` on mount;
+the bar holds the query, so switching modes keeps what you typed.
+
+Two things are deliberate rather than incidental:
+
+* Neither library's own panel UI is used. `basicSetup` bundles CodeMirror's search keymap, whose `Mod-f` opens that
+  panel, so it is swallowed at the highest precedence — otherwise both would appear.
+
+* Match counts are computed by walking the matches, since neither library reports a total. The ProseMirror walk steps by
+  `matchStart + 1` at minimum, because a zero-width regex match would otherwise return the same position forever.
+
+An invalid regex is a normal state while typing one, so it shows as `bad pattern` on the field rather than as an error.
+
+### 8.2 Across the project
+
+`Cmd/Ctrl+Shift+F` opens a **Search** tab beside the file tree, sharing the panel the browser already occupies. Results
+are grouped per file, collapsible, with the matching line and the match highlighted; clicking one opens the file at that
+line.
+
+Implemented in Rust over ripgrep's own crates — `ignore` for gitignore semantics, `grep` for the matcher and the
+line-oriented searcher. This means results match what `rg` would print, with no external binary to install, and it
+searches files git has never seen. `git grep` was rejected for exactly that: a note written a minute ago and not yet
+added would be invisible, which reads as a broken feature rather than a scoping decision. A TypeScript walk was rejected
+for speed and for having to reimplement gitignore matching and binary detection.
+
+Clicking a result forces **source** mode. A line number only means something there — ProseMirror positions count node
+boundaries, so the same offset in WYSIWYG lands somewhere unrelated. Jumping to the wrong place is not on offer, and
+silently not jumping would read as a broken result list.
+
+Caps: 500 files, 50 matches per file, 2000 total. Whichever bites is reported through `truncated` and shown in the panel,
+because a quietly shortened list reads as "that is all there is".
+
+There is deliberately no replace-across-files. It was not asked for, and it is the one operation here that can damage a
+whole project at once.
+
+***
+
+## 9. Session persistence
 
 Stored as `session.json` in the app config directory. Restores:
 
@@ -331,7 +420,7 @@ Terminal tabs respawn as fresh shells. PTY processes die with the app, so scroll
 
 ***
 
-## 8. Platforms
+## 10. Platforms
 
 Linux and macOS.
 
@@ -343,7 +432,7 @@ Verified dev environment: Ubuntu 24.04, webkit2gtk 4.1, Node 22.17, pnpm 10.29, 
 
 ***
 
-## 9. Testing
+## 11. Testing
 
 * **Rust integration tests** over throwaway repos, exercising checkpoint → edit → restore → verify-content.
 
@@ -357,7 +446,7 @@ rejected as slow and flaky enough to end up ignored.
 
 ***
 
-## 10. Build order
+## 12. Build order
 
 | Phase  | Contents                                                                                                                              |
 |--------|---------------------------------------------------------------------------------------------------------------------------------------|
@@ -370,7 +459,7 @@ Each phase ends somewhere usable, and dependencies flow forward without rework.
 
 ***
 
-## 11. Open questions
+## 13. Open questions
 
 Recorded assumptions, not yet exercised in real use. Revisit when they bite.
 

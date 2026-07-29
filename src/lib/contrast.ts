@@ -33,3 +33,13 @@ export function luminance(hex: string): number {
 export function readableFg(hex: string): string {
     return luminance(hex) > 0.179 ? "#14161a" : "#f5f7fa";
 }
+
+/**
+ * WCAG 2.x contrast ratio, 1 (identical) to 21 (black on white). Used to hold
+ * the shipped theme palettes to a floor in tests — hand-picked colors across
+ * six themes and two modes is exactly the kind of data that drifts unnoticed.
+ */
+export function contrastRatio(a: string, b: string): number {
+    const [lighter, darker] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (lighter + 0.05) / (darker + 0.05);
+}

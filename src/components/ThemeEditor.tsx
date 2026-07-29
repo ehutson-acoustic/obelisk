@@ -5,12 +5,10 @@ import {
     type ComponentKey,
     COMPONENTS,
     type ComponentStyle,
-    CUSTOM_PRESET,
     DEFAULT_FAMILIES,
     type EditorSettings,
-    forkToCustom,
-    PRESETS,
     resolveComponents,
+    themeDef,
 } from "../lib/editorSettings";
 import {familyLabel, systemFonts} from "../lib/fonts";
 
@@ -80,58 +78,45 @@ function FontSelect({
 type Props = {
     settings: EditorSettings;
     onChange: (next: EditorSettings) => void;
-    /** Components explicitly overridden here; shown as such with a reset. */
-    overridden?: Set<ComponentKey>;
-    onResetComponent?: (key: ComponentKey) => void;
 };
 
-export function ThemeEditor({
-                                settings,
-                                onChange,
-                                overridden,
-                                onResetComponent,
-                            }: Readonly<Props>) {
+/**
+ * Per-component markdown styling, layered over whatever theme is active. Edits
+ * here are stored as overrides rather than forking the theme, so switching themes
+ * keeps them and resetting a component returns it to the theme's own value.
+ */
+export function ThemeEditor({settings, onChange}: Readonly<Props>) {
     const [selected, setSelected] = useState<ComponentKey>("body");
     const [fonts, setFonts] = useState<string[]>([]);
     const resolved = resolveComponents(settings);
     const style = resolved[selected];
+    const edited = new Set(Object.keys(settings.components) as ComponentKey[]);
 
     useEffect(() => {
         systemFonts().then(setFonts);
     }, []);
 
     const setProperty = (property: keyof ComponentStyle, value: string) => {
-        // Editing a shipped preset forks it rather than redefining the preset.
-        const base = forkToCustom(settings);
         onChange({
-            ...base,
+            ...settings,
             components: {
-                ...base.components,
-                [selected]: {...base.components[selected], [property]: value},
+                ...settings.components,
+                [selected]: {...settings.components[selected], [property]: value},
             },
         });
     };
 
+    const resetComponent = (key: ComponentKey) => {
+        const {[key]: _dropped, ...rest} = settings.components;
+        onChange({...settings, components: rest});
+    };
+
     return (
         <div className="theme-editor">
-            <label className="field">
-                <span>Preset</span>
-                <select
-                    value={settings.preset}
-                    onChange={(e) =>
-                        onChange({...settings, preset: e.target.value, components: {}})
-                    }
-                >
-                    {Object.entries(PRESETS).map(([id, preset]) => (
-                        <option key={id} value={id}>
-                            {preset.label}
-                        </option>
-                    ))}
-                    {settings.preset === CUSTOM_PRESET && (
-                        <option value={CUSTOM_PRESET}>Custom</option>
-                    )}
-                </select>
-            </label>
+            <p className="dialog-hint">
+                Layered over <strong>{themeDef(settings.theme).label}</strong>. Reset a
+                component to return it to the theme's own styling.
+            </p>
 
             <div className="theme-grid">
                 <div className="theme-components">
@@ -142,7 +127,7 @@ export function ThemeEditor({
                             onClick={() => setSelected(key)}
                         >
                             <span>{COMPONENT_LABELS[key]}</span>
-                            {overridden?.has(key) && <span className="badge">overridden</span>}
+                            {edited.has(key) && <span className="badge">edited</span>}
                         </button>
                     ))}
                 </div>
@@ -150,11 +135,11 @@ export function ThemeEditor({
                 <div className="theme-fields">
                     <div className="theme-fields-head">
                         <span>{COMPONENT_LABELS[selected]}</span>
-                        {onResetComponent && overridden?.has(selected) && (
+                        {edited.has(selected) && (
                             <button
                                 className="icon-btn"
-                                title="Reset to the app default"
-                                onClick={() => onResetComponent(selected)}
+                                title="Reset to the theme's styling"
+                                onClick={() => resetComponent(selected)}
                             >
                                 <RotateCcw size={13}/>
                             </button>

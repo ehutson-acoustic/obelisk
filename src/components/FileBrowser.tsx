@@ -9,6 +9,7 @@ import {
     FolderOpen,
     FolderPlus,
 } from "lucide-react";
+import type {ReactNode} from "react";
 import {useCallback, useEffect, useState} from "react";
 import {createFile, createFolder, isMarkdown, listDir} from "../lib/files";
 import type {FileNode} from "../types";
@@ -17,6 +18,8 @@ type Props = {
     root: string | null;
     activePath: string | null;
     collapsed: boolean;
+    /** Replaces the panel title, so the Files/Search tabs can live there. */
+    titleSlot?: ReactNode;
     onOpen: (path: string) => void;
     onCollapse: () => void;
 };
@@ -25,6 +28,7 @@ export function FileBrowser({
                                 root,
                                 activePath,
                                 collapsed,
+                                titleSlot,
                                 onOpen,
                                 onCollapse,
                             }: Readonly<Props>) {
@@ -128,7 +132,7 @@ export function FileBrowser({
     return (
         <div className="panel file-browser">
             <div className="panel-header">
-                <span className="panel-title">Files</span>
+                {titleSlot ?? <span className="panel-title">Files</span>}
                 <div className="panel-actions">
                     <button
                         className="icon-btn"
