@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Obelisk is a Tauri v2 desktop app: a Markdown editor (WYSIWYG + raw source) with an integrated terminal, built for
-editing Markdown while a Claude Code session runs in the panel beside it. Per-file version history ("checkpoints") lives
-in a *shadow* git repo so the project's own history is never touched.
+editing Markdown while a Claude Code session runs in the panel beside it. Per-file version history ("checkpoints") is
+ordinary commits in the project's own git repo, on the checked-out branch.
 
 `docs/DESIGN.md` is the authority on *why* things are the way they are, section-numbered and referenced from the code
 (`DESIGN §3.4`). Read the relevant section before changing behavior in that area, and update it when a decision changes.
@@ -37,8 +37,9 @@ Requires Node 22+, pnpm, Rust 1.94+, and `git` on `PATH`. Linux/macOS only; Wind
 
 ## Architecture
 
-**Rust is thin.** `src-tauri/src/lib.rs` exposes nine commands: `default_shell`, `system_fonts`, `git_available`,
-five `checkpoint_*` wrappers around `checkpoints.rs`, and `search_project` over `search.rs`. Everything else — file reads/writes, directory listing, the file
+**Rust is thin-ish.** `src-tauri/src/lib.rs` exposes fourteen commands: `default_shell`, `system_fonts`,
+`git_available`, five `checkpoint_*`, `repo_state`, four `branch_*`, and `git_stash` — all but the first two thin wrappers
+around `checkpoints.rs`. Everything else — file reads/writes, directory listing, the file
 watcher, config persistence — happens in the frontend through `@tauri-apps/plugin-fs`. Adding a Rust command means
 registering it in `invoke_handler!`; adding a new fs/plugin API usually means adding a permission to
 `src-tauri/capabilities/default.json`.
@@ -86,8 +87,20 @@ deliberately no "discard my changes" path — reverting goes through checkpoints
 
 ### Checkpoints (`src-tauri/src/checkpoints.rs`)
 
-Shells out to the system `git` with `GIT_DIR=<project>/.obelisk/git`, `GIT_WORK_TREE=<project>`, and `current_dir` pinned
-to the project (pathspecs resolve against the process cwd, not the work tree). Commits are **active-file-only**.
+Shells out to the system `git` in the **project's own repo** (`DESIGN §3.1` — this reverses the earlier shadow-repo
+design; read that section before changing anything here). `current_dir` is pinned to the *repo root*, not the project
+dir, because pathspecs resolve against the process cwd and the project may be a subdirectory of the repo. Commits are
+**active-file-only** and land on the checked-out branch.
+
+Four rules exist because this is real, pushable history, and each one has a test:
+
+* Commits are assembled in a **scratch index** (`GIT_INDEX_FILE`), never `git add`, so other paths' staged work survives.
+  Afterwards the real index entry for *that path only* is moved to the new blob — `sync_index` explains why leaving it
+  stale is not an option (it makes `git status` report a phantom staged reversal).
+* Committing is **refused** while HEAD is detached or a rebase/merge/cherry-pick/revert/bisect is in progress.
+* **Gitignored files are never committed.**
+* Commits use the user's identity and are **never signed** (a passphrase prompt would block an autosave). `commit-tree`
+  runs no hooks, deliberately.
 
 Two creation paths, and the difference matters:
 
@@ -96,9 +109,11 @@ Two creation paths, and the difference matters:
   touching the working tree. This is what makes an incoming external write recoverable: by the time the watcher fires,
   the bytes worth saving exist only in the editor buffer.
 
-`restore` is `checkout <sha> -- <path>` followed by an unstage, so history stays linear and append-only — no detached
-HEAD, nothing stranded. `src-tauri/tests/checkpoints.rs` covers this path against throwaway repos; it is the one place
-where a bug silently destroys the user's writing, so extend those tests with any change here.
+Restore is `read_blob` + a frontend write, *not* `git checkout -- <path>`: routing it through the editor's save path is
+what lets `lastWrite` suppress the watcher echo, and it leaves the index alone.
+
+`src-tauri/tests/checkpoints.rs` covers all of this against throwaway repos; it is the one place where a bug silently
+destroys the user's writing or their staged work, so extend those tests with any change here.
 
 ### Theming
 

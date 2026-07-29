@@ -6,6 +6,10 @@ type Props = {
     /** Auto-generated title, pre-filled and fully editable (DESIGN §3.3). */
     suggestion: string;
     fileName: string;
+    /** Branch the commit will land on, since it is real history now. */
+    branch: string | null;
+    /** This file is staged at other content, which the commit supersedes. */
+    staged: boolean;
     onConfirm: (title: string) => void;
     onOpenChange: (open: boolean) => void;
 };
@@ -14,6 +18,8 @@ export function CheckpointDialog({
                                      open,
                                      suggestion,
                                      fileName,
+                                     branch,
+                                     staged,
                                      onConfirm,
                                      onOpenChange,
                                  }: Readonly<Props>) {
@@ -35,7 +41,24 @@ export function CheckpointDialog({
                 <Dialog.Overlay className="overlay"/>
                 <Dialog.Content className="dialog">
                     <Dialog.Title className="dialog-title">Create checkpoint</Dialog.Title>
-                    <div className="dialog-hint">{fileName}</div>
+                    <div className="dialog-hint">
+                        {fileName}
+                        {branch && (
+                            <>
+                                {" — commits to "}
+                                <code>{branch}</code>
+                            </>
+                        )}
+                    </div>
+
+                    {/* The staged version is superseded rather than kept, so say so
+                        before the commit rather than after (DESIGN §3.2). */}
+                    {staged && (
+                        <p className="dialog-warn">
+                            This file has staged changes. Checkpointing replaces what is
+                            staged with the version being committed.
+                        </p>
+                    )}
 
                     <label className="field">
                         <span>Title</span>

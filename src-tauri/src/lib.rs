@@ -3,7 +3,7 @@ pub mod search;
 
 use std::path::PathBuf;
 
-use checkpoints::{Checkpoint, CheckpointStatus};
+use checkpoints::{Branches, Checkpoint, CheckpointStatus, RepoState};
 use search::{SearchOptions, SearchOutcome};
 
 /// The webview has no access to the process environment, so the shell to spawn
@@ -115,9 +115,41 @@ fn checkpoint_list(project: PathBuf, file: PathBuf) -> Result<Vec<Checkpoint>, S
     checkpoints::list(&project, &file)
 }
 
+/// Returns the content rather than writing it: the frontend writes through its
+/// own save path so the watcher recognises the echo (DESIGN §3.6).
 #[tauri::command]
-fn checkpoint_restore(project: PathBuf, file: PathBuf, sha: String) -> Result<(), String> {
-    checkpoints::restore(&project, &file, &sha)
+fn checkpoint_content(project: PathBuf, file: PathBuf, sha: String) -> Result<String, String> {
+    checkpoints::read_blob(&project, &file, &sha)
+}
+
+#[tauri::command]
+fn repo_state(project: PathBuf) -> Result<RepoState, String> {
+    checkpoints::state(&project)
+}
+
+#[tauri::command]
+fn branch_list(project: PathBuf) -> Result<Branches, String> {
+    checkpoints::branches(&project)
+}
+
+#[tauri::command]
+fn branch_switch(project: PathBuf, name: String) -> Result<(), String> {
+    checkpoints::switch_branch(&project, &name)
+}
+
+#[tauri::command]
+fn branch_create(project: PathBuf, name: String) -> Result<(), String> {
+    checkpoints::create_branch(&project, &name)
+}
+
+#[tauri::command]
+fn branch_track(project: PathBuf, reference: String) -> Result<(), String> {
+    checkpoints::track_branch(&project, &reference)
+}
+
+#[tauri::command]
+fn git_stash(project: PathBuf, label: String) -> Result<bool, String> {
+    checkpoints::stash(&project, &label)
 }
 
 /// Project-wide search (DESIGN §8.2). Synchronous: the walk is fast enough that
@@ -148,6 +180,13 @@ pub fn run() {
             checkpoint_list,
             checkpoint_restore,
             search_project
+            checkpoint_content,
+            repo_state,
+            branch_list,
+            branch_switch,
+            branch_create,
+            branch_track,
+            git_stash
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

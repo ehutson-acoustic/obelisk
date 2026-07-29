@@ -1,7 +1,6 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {invoke} from "@tauri-apps/api/core";
-import {watch} from "@tauri-apps/plugin-fs";
+import {exists, watch} from "@tauri-apps/plugin-fs";
 import {
     ChevronDown,
     ChevronUp,
@@ -18,6 +17,7 @@ import type {RefObject} from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Group, type Layout, Panel, type PanelImperativeHandle, Separator, usePanelRef,} from "react-resizable-panels";
 import {BrandMark} from "./components/BrandMark";
+import {type BranchTarget, BranchMenu} from "./components/BranchMenu";
 import {CheckpointDialog} from "./components/CheckpointDialog";
 import {Editor} from "./components/Editor";
 import {FileBrowser} from "./components/FileBrowser";
@@ -30,13 +30,22 @@ import {TerminalView} from "./components/Terminal";
 import {VersionsPanel} from "./components/VersionsPanel";
 import {type AppSettings, DEFAULT_APP_SETTINGS, loadAppSettings, saveAppSettings,} from "./lib/appSettings";
 import {
+    type Branches,
     type Checkpoint,
+    checkpointContent,
     checkpointFromContent,
     checkpointStatus,
+    type CheckpointStatus,
+    createBranch,
     createCheckpoint,
     gitAvailable,
+    listBranches,
     listCheckpoints,
-    restoreCheckpoint,
+    repoState,
+    type RepoState,
+    stashChanges,
+    switchBranch,
+    trackBranch,
 } from "./lib/checkpoints";
 import {checkpointTitle} from "./lib/checkpointTitle";
 import {
@@ -51,13 +60,18 @@ import {
 } from "./lib/editorSettings";
 import type {FindApi} from "./lib/find";
 import {basename, dirname, isMarkdown, readFile, writeFile} from "./lib/files";
-import {addGitignoreEntry, needsGitignoreEntry} from "./lib/gitignore";
 import {loadProjectSettings} from "./lib/projectSettings";
 import {loadSession, saveSession} from "./lib/session";
 import {applyTheme, injectStyle, resolveTheme, type Theme, watchSystemTheme,} from "./lib/theme";
 import {DEFAULT_SESSION, type EditorMode, type Project, type Session,} from "./types";
 
 const AUTOSAVE_MS = 1000;
+const NO_BRANCHES: Branches = {
+    current: null,
+    defaultBranch: null,
+    local: [],
+    remote: [],
+};
 /** Terminal tab bar height; also the panel's collapsed size, so the bar
  *  (and its expand toggle) stays visible when the panel is closed. */
 const TERM_BAR_H = 32;
@@ -83,7 +97,10 @@ export default function App() {
     const [ckptBusy, setCkptBusy] = useState(false);
     const [ckptError, setCkptError] = useState<string | null>(null);
     const [ckptDialog, setCkptDialog] = useState({open: false, suggestion: ""});
-    const [gitignoreAsk, setGitignoreAsk] = useState<string | null>(null);
+    /** Repo state and the active file's git status, refreshed together. */
+    const [repo, setRepo] = useState<RepoState | null>(null);
+    const [branches, setBranches] = useState<Branches>(NO_BRANCHES);
+    const [fileStatus, setFileStatus] = useState<CheckpointStatus | null>(null);
     const [projectOverrides, setProjectOverrides] = useState<ProjectOverrides>({});
     const [projectSettingsFor, setProjectSettingsFor] = useState<Project | null>(
         null,
@@ -562,18 +579,56 @@ export default function App() {
         loadProjectSettings(activeProject.dir).then(setProjectOverrides);
     }, [activeProject]);
 
+    /**
+     * History, the file's git status, and the repo's own state travel together:
+     * `blocked` can start being true because of something done in the terminal,
+     * so the Checkpoint button has to re-check rather than trust a cached answer.
+     */
     const refreshCheckpoints = useCallback(async () => {
-        if (!activeProject || !activePath || !gitOk) {
+        if (!activeProject || !gitOk) {
             setCheckpoints([]);
+            setFileStatus(null);
+            setRepo(null);
             return;
         }
         try {
-            setCheckpoints(await listCheckpoints(activeProject.dir, activePath));
+            setRepo(await repoState(activeProject.dir));
+        } catch {
+            setRepo(null);
+        }
+        if (!activePath) {
+            setCheckpoints([]);
+            setFileStatus(null);
+            return;
+        }
+        try {
+            const [history, status] = await Promise.all([
+                listCheckpoints(activeProject.dir, activePath),
+                checkpointStatus(activeProject.dir, activePath),
+            ]);
+            setCheckpoints(history);
+            setFileStatus(status);
             setCkptError(null);
         } catch (err) {
             setCkptError(String(err));
         }
     }, [activeProject, activePath, gitOk]);
+
+    const refreshBranches = useCallback(async () => {
+        if (!activeProject || !gitOk) {
+            setBranches(NO_BRANCHES);
+            return;
+        }
+        try {
+            setBranches(await listBranches(activeProject.dir));
+        } catch {
+            setBranches(NO_BRANCHES);
+        }
+    }, [activeProject, gitOk]);
+
+    useEffect(() => {
+        refreshBranches();
+    }, [refreshBranches]);
 
     useEffect(() => {
         refreshCheckpoints();
@@ -637,7 +692,14 @@ export default function App() {
                     contentRef.current,
                     `Before restoring ${checkpoint.short}`,
                 );
-                await restoreCheckpoint(activeProject.dir, activePath, checkpoint.sha);
+                // Written here rather than by `git checkout` so the write goes
+                // through `lastWrite` and the watcher ignores its own echo.
+                const text = await checkpointContent(
+                    activeProject.dir,
+                    activePath,
+                    checkpoint.sha,
+                );
+                await flushSave(text, activePath);
                 await loadInto(activePath);
                 await refreshCheckpoints();
                 setStatus(`Restored ${checkpoint.short}`);
@@ -647,7 +709,7 @@ export default function App() {
                 setCkptBusy(false);
             }
         },
-        [activeProject, activePath, loadInto, refreshCheckpoints],
+        [activeProject, activePath, flushSave, loadInto, refreshCheckpoints],
     );
 
     // Periodic checkpoint while dirty.
@@ -679,30 +741,114 @@ export default function App() {
         refreshCheckpoints,
     ]);
 
-    // Offer to keep checkpoint history out of the project's own repo, once.
-    useEffect(() => {
-        if (!activeProject || !gitOk) return;
-        if (session.gitignorePrompted.includes(activeProject.id)) return;
-        needsGitignoreEntry(activeProject.dir).then((needs) => {
-            if (needs) setGitignoreAsk(activeProject.id);
-        });
-    }, [activeProject, gitOk, session.gitignorePrompted]);
+    // ---- branches ------------------------------------------------------------
 
-    const resolveGitignore = (add: boolean) => {
-        const id = gitignoreAsk;
-        setGitignoreAsk(null);
-        if (!id) return;
-        const project = session.projects.find((p) => p.id === id);
-        setSession((s) => ({
-            ...s,
-            gitignorePrompted: [...s.gitignorePrompted, id],
-        }));
-        if (add && project) {
-            addGitignoreEntry(project.dir).catch((err) =>
-                setStatus(`Could not update .gitignore: ${err}`),
+    /**
+     * Never let a branch operation be the reason writing is lost. Only the active
+     * file has an in-memory buffer, so it is the only one that can be dirty.
+     */
+    const secureActiveBuffer = useCallback(
+        async (reason: string) => {
+            if (!activeProject || !activePath || !gitOk || !dirtyRef.current) return;
+            if (saveTimer.current) window.clearTimeout(saveTimer.current);
+            await flushSave(contentRef.current, activePath);
+            await checkpointFromContent(
+                activeProject.dir,
+                activePath,
+                contentRef.current,
+                reason,
+            ).catch(() => {
+                /* blocked repo states are reported by the switch itself */
+            });
+        },
+        [activeProject, activePath, gitOk, flushSave],
+    );
+
+    /**
+     * A switch rewrites the working tree, so open tabs may have new content or
+     * have stopped existing. Reuses the normal reload path for the former and
+     * closes tabs for the latter, but only for files inside this project.
+     */
+    const afterBranchChange = useCallback(
+        async (message: string) => {
+            if (!activeProject) return;
+            await Promise.all([refreshBranches(), refreshCheckpoints()]);
+
+            const owned = session.openFiles.filter((f) =>
+                f.path.startsWith(activeProject.dir),
             );
-        }
-    };
+            const checked = await Promise.all(
+                owned.map(async (f) => ({
+                    path: f.path,
+                    gone: !(await exists(f.path).catch(() => true)),
+                })),
+            );
+            const gone = new Set(checked.filter((c) => c.gone).map((c) => c.path));
+
+            if (gone.size > 0) {
+                setSession((s) => {
+                    const openFiles = s.openFiles.filter((f) => !gone.has(f.path));
+                    return {
+                        ...s,
+                        openFiles,
+                        activeFilePath:
+                            s.activeFilePath && gone.has(s.activeFilePath)
+                                ? (openFiles[openFiles.length - 1]?.path ?? null)
+                                : s.activeFilePath,
+                    };
+                });
+            }
+            if (activePath && !gone.has(activePath)) await loadInto(activePath);
+
+            const closed =
+                gone.size > 0
+                    ? ` — closed ${gone.size} file${gone.size === 1 ? "" : "s"} not on this branch`
+                    : "";
+            setStatus(`${message}${closed}`);
+        },
+        [
+            activeProject,
+            activePath,
+            session.openFiles,
+            loadInto,
+            refreshBranches,
+            refreshCheckpoints,
+        ],
+    );
+
+    /** Rejects with git's message so the dropdown can offer to stash. */
+    const switchTo = useCallback(
+        async (target: BranchTarget) => {
+            if (!activeProject) return;
+            await secureActiveBuffer("Before switching branches");
+            if (target.reference) {
+                await trackBranch(activeProject.dir, target.reference);
+            } else {
+                await switchBranch(activeProject.dir, target.name);
+            }
+            await afterBranchChange(`Switched to ${target.name}`);
+        },
+        [activeProject, secureActiveBuffer, afterBranchChange],
+    );
+
+    const createAndSwitch = useCallback(
+        async (name: string) => {
+            if (!activeProject) return;
+            await secureActiveBuffer("Before creating a branch");
+            await createBranch(activeProject.dir, name);
+            await afterBranchChange(`Created ${name}`);
+        },
+        [activeProject, secureActiveBuffer, afterBranchChange],
+    );
+
+    const stashFor = useCallback(
+        async (label: string) => {
+            if (!activeProject) return;
+            const stashed = await stashChanges(activeProject.dir, label);
+            if (stashed) setStatus("Stashed local changes");
+        },
+        [activeProject],
+    );
 
     // ---- external changes ----------------------------------------------------
 
@@ -782,6 +928,19 @@ export default function App() {
         const t = window.setTimeout(() => setStatus(null), 3000);
         return () => window.clearTimeout(t);
     }, [status]);
+
+    /**
+     * Everything that makes checkpointing unavailable, as the reason to show in
+     * the button's tooltip. A gitignored file is refused by Rust anyway, so
+     * saying why up front beats letting the click fail.
+     */
+    const checkpointBlockedReason = useMemo(() => {
+        if (!gitOk) return "git was not found on PATH";
+        if (fileStatus?.ignored) return "This file is excluded by .gitignore";
+        // A missing repo is not a blocker: the first checkpoint creates one.
+        if (repo?.repo && repo.blocked) return `Unavailable while ${repo.blocked}`;
+        return null;
+    }, [gitOk, fileStatus?.ignored, repo]);
 
     // ---- render --------------------------------------------------------------
 
@@ -870,14 +1029,22 @@ export default function App() {
                             </DropdownMenu.Portal>
                         </DropdownMenu.Root>
                     )}
+                    <BranchMenu
+                        state={repo}
+                        branches={branches}
+                        busy={ckptBusy}
+                        disabled={!activeProject || !gitOk || !repo?.repo}
+                        onOpen={refreshBranches}
+                        onSwitch={switchTo}
+                        onCreate={createAndSwitch}
+                        onStash={stashFor}
+                    />
                     <button
                         className="btn"
-                        title={
-                            gitOk
-                                ? "Create a checkpoint"
-                                : "git was not found on PATH"
+                        title={checkpointBlockedReason ?? "Create a checkpoint"}
+                        disabled={
+                            !activePath || !activeProject || ckptBusy || !!checkpointBlockedReason
                         }
-                        disabled={!activePath || !activeProject || !gitOk || ckptBusy}
                         onClick={openCheckpointDialog}
                     >
                         <GitCommitVertical size={14}/> Checkpoint
@@ -1172,8 +1339,13 @@ export default function App() {
                                 checkpoints={checkpoints}
                                 hasFile={!!activePath && !!activeProject}
                                 gitMissing={!gitOk}
+                                noRepo={!!activeProject && gitOk && repo?.repo === false}
                                 error={ckptError}
                                 busy={ckptBusy}
+                                checkpointsOnly={session.versionsCheckpointsOnly}
+                                onCheckpointsOnlyChange={(value) =>
+                                    patch({versionsCheckpointsOnly: value})
+                                }
                                 onRestore={handleRestore}
                             />
                         </Panel>
@@ -1204,45 +1376,14 @@ export default function App() {
                 open={ckptDialog.open}
                 suggestion={ckptDialog.suggestion}
                 fileName={activePath ?? ""}
+                branch={repo?.branch ?? null}
+                staged={!!fileStatus?.staged}
                 onConfirm={confirmCheckpoint}
                 onOpenChange={(open) =>
                     setCkptDialog((d) => ({...d, open}))
                 }
             />
 
-            <Dialog.Root
-                open={!!gitignoreAsk}
-                onOpenChange={(open) => !open && resolveGitignore(false)}
-            >
-                <Dialog.Portal>
-                    <Dialog.Overlay className="overlay"/>
-                    <Dialog.Content className="dialog">
-                        <Dialog.Title className="dialog-title">
-                            Ignore checkpoint history?
-                        </Dialog.Title>
-                        <p className="dialog-text">
-                            This project is a git repository. Obelisk keeps its checkpoint
-                            history in <code>.obelisk/git/</code>, which you probably don't
-                            want to commit. Add it to this project's <code>.gitignore</code>?
-                        </p>
-                        <p className="dialog-hint">
-                            <code>.obelisk/settings.json</code> stays tracked, so project
-                            settings can still be shared.
-                        </p>
-                        <div className="dialog-actions">
-                            <button className="btn" onClick={() => resolveGitignore(false)}>
-                                Not now
-                            </button>
-                            <button
-                                className="btn primary"
-                                onClick={() => resolveGitignore(true)}
-                            >
-                                Add it
-                            </button>
-                        </div>
-                    </Dialog.Content>
-                </Dialog.Portal>
-            </Dialog.Root>
         </div>
     );
 }
