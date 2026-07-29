@@ -60,11 +60,12 @@ than writing a migration.
 |---|---|---|
 | `session.json` (app config dir) | `lib/session.ts` | window/panel state, open tabs, projects, terminals |
 | `settings.json` (app config dir) | `lib/appSettings.ts` | appearance (app-only) + default `EditorSettings` |
-| `<project>/.obelisk/settings.json` | `lib/projectSettings.ts` | **sparse** project overrides |
+| `<project>/.obelisk/settings.json` | `lib/projectSettings.ts` | **sparse** project overrides — two scalars only |
 
-`lib/editorSettings.ts` is the merge engine: `BASE ⊕ preset ⊕ per-component edits` (`resolveComponents`), app defaults ⊕
-project overrides (`mergeSettings`), and `sparseOverrides` on the way back out so only real differences are stored.
-Never write a full settings object into a project file.
+`lib/editorSettings.ts` is the theme and merge engine: `BASE ⊕ theme ⊕ per-component edits` (`resolveComponents`), app
+defaults ⊕ project overrides (`mergeSettings`), and `sparseOverrides` on the way back out. A project can override only
+`checkpointIntervalMinutes` and `terminalStartupCommand`; styling is app-wide by design (`DESIGN §5.2`), so do not add
+style keys back to `ProjectOverrides`. Never write a full settings object into a project file.
 
 ### Editor: two imperative views, remounted not updated
 
@@ -116,14 +117,30 @@ destroys the user's writing or their staged work, so extend those tests with any
 
 ### Theming
 
-Two independent mechanisms, both DOM-level:
+A **theme** (`THEMES` in `editorSettings.ts`) is a light palette, a dark palette, a typography baseline, and a content
+measure — see `DESIGN §5.3`. Three DOM-level mechanisms, all generated as stylesheet text and injected via
+`injectStyle()`:
 
-* Markdown styling is generated as stylesheet text by `themeCss()` and injected into a `<style id="md-theme">` — not
-  inline styles, since ProseMirror creates and destroys nodes as you type. The selectors in `editorSettings.ts` are
-  written against the DOM Crepe actually produces (code blocks are CodeMirror instances, paragraphs carry Crepe's own
-  size) and must out-specify Crepe's rules.
+* Markdown styling → `<style id="md-theme">` from `themeCss()` — not inline styles, since ProseMirror creates and
+  destroys nodes as you type. The selectors are written against the DOM Crepe actually produces (code blocks are
+  CodeMirror instances, paragraphs carry Crepe's own size) and must out-specify Crepe's rules.
+* The palette → `<style id="app-palette">` from `paletteCss()`, as `:root[data-theme="light"|"dark"]` blocks. The
+  attribute selector is required to out-specify the bare `:root` defaults in `styles.css`.
 * Crepe's light/dark themes are separate stylesheets defining the same variables, so `lib/theme.ts` swaps the `href` of a
   single `<link id="crepe-theme">`. Never statically import a Crepe theme CSS file — that pins one variant.
+
+`editorSettings.test.ts` asserts contrast floors for all twelve palettes. If you add or edit a theme and that test fails,
+the palette is wrong — do not lower the floor.
+
+Editor font sizes are emitted as `calc(<size> * var(--editor-zoom))` (`DESIGN §7`), so zoom is one variable write. Any new
+absolute size in the editor should go through `scaled()`.
+
+### Find (`lib/find.ts`)
+
+One `FindApi` interface over two backends — `prosemirror-search` in WYSIWYG, `@codemirror/search` in source. Each view
+publishes an api on mount and revokes it on unmount; `FindBar` holds the query so it survives a mode switch. Project-wide
+search is `search.rs` over ripgrep's `ignore` + `grep` crates. `DESIGN §8` covers why neither library's own panel is used
+and why `git grep` was rejected.
 
 ### Terminal
 

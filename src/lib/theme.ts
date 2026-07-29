@@ -1,8 +1,24 @@
 import frameDark from "@milkdown/crepe/theme/frame-dark.css?url";
 import frameLight from "@milkdown/crepe/theme/frame.css?url";
 import type {Appearance} from "./appSettings";
+import type {Palette} from "./editorSettings";
 
 export type Theme = "light" | "dark";
+
+/**
+ * Generated CSS goes into a `<style>` element rather than inline styles because
+ * it has to reach nodes ProseMirror creates and destroys as you type, and — for
+ * the palette — the `:root` variables the whole app is written against.
+ */
+export function injectStyle(id: string, css: string): void {
+    let element = document.getElementById(id);
+    if (!element) {
+        element = document.createElement("style");
+        element.id = id;
+        document.head.appendChild(element);
+    }
+    if (element.textContent !== css) element.textContent = css;
+}
 
 export function systemTheme(): Theme {
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches
@@ -43,10 +59,29 @@ export function watchSystemTheme(onChange: () => void): () => void {
 
 /**
  * xterm's stock ANSI palette assumes a dark background; on white, its yellow
- * and cyan are close to invisible. Each theme gets a palette tuned for its
+ * and cyan are close to invisible. Each mode gets a palette tuned for its
  * background rather than sharing one.
+ *
+ * `palette` overlays the theme's own ground, foreground and cursor so the
+ * terminal belongs to the active theme. The sixteen ANSI colours stay keyed to
+ * light/dark only: programs assign them meanings (red is an error, green a pass),
+ * so re-tinting them per theme would trade a real signal for a cosmetic one —
+ * and hand-tuning sixteen colours across twelve palettes would rot immediately.
  */
-export function xtermTheme(theme: Theme) {
+export function xtermTheme(theme: Theme, palette?: Palette) {
+    const base = ansiPalette(theme);
+    if (!palette) return base;
+    return {
+        ...base,
+        background: palette.termBg,
+        foreground: palette.fg,
+        cursor: palette.fg,
+        cursorAccent: palette.termBg,
+        selectionBackground: palette.borderStrong,
+    };
+}
+
+function ansiPalette(theme: Theme) {
     return theme === "dark"
         ? {
             background: "#1e2128",

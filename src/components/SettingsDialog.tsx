@@ -2,6 +2,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {Monitor, Moon, Sun} from "lucide-react";
 import {useState} from "react";
 import type {Appearance, AppSettings} from "../lib/appSettings";
+import {THEMES} from "../lib/editorSettings";
+import {resolveTheme} from "../lib/theme";
 import {ThemeEditor} from "./ThemeEditor";
 
 const MODES: { value: Appearance; label: string; icon: typeof Sun }[] = [
@@ -24,6 +26,7 @@ export function SettingsDialog({
                                    onOpenChange,
                                }: Readonly<Props>) {
     const [tab, setTab] = useState<"appearance" | "markdown">("appearance");
+    const resolved = resolveTheme(settings.appearance);
 
     return (
         <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -52,33 +55,68 @@ export function SettingsDialog({
                     </div>
 
                     {tab === "appearance" ? (
-                        <div className="field">
-                            <span>Theme</span>
-                            <div className="mode-row">
-                                {MODES.map(({value, label, icon: Icon}) => (
-                                    <button
-                                        key={value}
-                                        className={`mode-btn${settings.appearance === value ? " active" : ""}`}
-                                        aria-pressed={settings.appearance === value}
-                                        onClick={() => onChange({...settings, appearance: value})}
-                                    >
-                                        <Icon size={18}/>
-                                        <span>{label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
                         <>
-                            <ThemeEditor
-                                settings={settings.editor}
-                                onChange={(editor) => onChange({...settings, editor})}
-                            />
-                            <p className="dialog-hint">
-                                These are the defaults. Any project can override them from its
-                                own settings.
-                            </p>
+                            {/* Independent of the theme: every theme defines both a
+                                light and a dark palette (DESIGN §5.3). */}
+                            <div className="field">
+                                <span>Mode</span>
+                                <div className="mode-row">
+                                    {MODES.map(({value, label, icon: Icon}) => (
+                                        <button
+                                            key={value}
+                                            className={`mode-btn${settings.appearance === value ? " active" : ""}`}
+                                            aria-pressed={settings.appearance === value}
+                                            onClick={() => onChange({...settings, appearance: value})}
+                                        >
+                                            <Icon size={18}/>
+                                            <span>{label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="field">
+                                <span>Theme</span>
+                                <div className="theme-cards">
+                                    {Object.entries(THEMES).map(([id, theme]) => (
+                                        <button
+                                            key={id}
+                                            className={`theme-card${settings.editor.theme === id ? " active" : ""}`}
+                                            aria-pressed={settings.editor.theme === id}
+                                            onClick={() =>
+                                                onChange({
+                                                    ...settings,
+                                                    editor: {...settings.editor, theme: id},
+                                                })
+                                            }
+                                        >
+                                            {/* Shows the mode that is actually in use, so the
+                                                swatch matches what selecting it will do. */}
+                                            <span
+                                                className="theme-swatch"
+                                                style={{
+                                                    background: theme[resolved].bg,
+                                                    borderColor: theme[resolved].borderStrong,
+                                                }}
+                                            >
+                                                <span style={{background: theme[resolved].fg}}/>
+                                                <span style={{background: theme[resolved].fgMuted}}/>
+                                                <span style={{background: theme[resolved].accent}}/>
+                                            </span>
+                                            <span className="theme-card-text">
+                                                <strong>{theme.label}</strong>
+                                                <small>{theme.description}</small>
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </>
+                    ) : (
+                        <ThemeEditor
+                            settings={settings.editor}
+                            onChange={(editor) => onChange({...settings, editor})}
+                        />
                     )}
 
                     <div className="dialog-actions">

@@ -11,6 +11,9 @@ importers:
       '@codemirror/lang-markdown':
         specifier: ^6.5.1
         version: 6.5.1
+      '@codemirror/search':
+        specifier: ^6.7.1
+        version: 6.7.1
       '@codemirror/state':
         specifier: ^6.7.1
         version: 6.7.1
@@ -65,6 +68,9 @@ importers:
       lucide-react:
         specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
+      prosemirror-search:
+        specifier: ^1.1.1
+        version: 1.1.1
       react:
         specifier: ^19.1.0
         version: 19.2.8
@@ -1767,6 +1773,9 @@ packages:
 
   prosemirror-schema-list@1.5.1:
     resolution: {integrity: sha512-927lFx/uwyQaGwJxLWCZRkjXG0p48KpMj6ueoYiu4JX05GGuGcgzAy62dfiV8eFZftgyBUvLx76RsMe20fJl+Q==}
+
+  prosemirror-search@1.1.1:
+    resolution: {integrity: sha512-1dbxbF1YYlP9mYJnFbfdOb9+RTdFHeZ/GwgEyHD4jg9szA8EVitMCnfXUBYLmFun500FMZBkRvcV0gp5BpLw4Q==}
 
   prosemirror-state@1.4.4:
     resolution: {integrity: sha512-6jiYHH2CIGbCfnxdHbXZ12gySFY/fz/ulZE333G6bPqIZ4F+TXo9ifiR86nAHpWnfoNjOb3o5ESi7J8Uz1jXHw==}
@@ -4334,6 +4343,12 @@ snapshots:
       prosemirror-model: 1.25.11
       prosemirror-state: 1.4.4
       prosemirror-transform: 1.12.0
+
+  prosemirror-search@1.1.1:
+    dependencies:
+      prosemirror-model: 1.25.11
+      prosemirror-state: 1.4.4
+      prosemirror-view: 1.42.2
 
   prosemirror-state@1.4.4:
     dependencies:

@@ -2,6 +2,7 @@ import {FitAddon} from "@xterm/addon-fit";
 import {Terminal as Xterm} from "@xterm/xterm";
 import {useEffect, useRef} from "react";
 import {spawn} from "tauri-pty";
+import type {Palette} from "../lib/editorSettings";
 import {type Theme, xtermTheme} from "../lib/theme";
 
 import "@xterm/xterm/css/xterm.css";
@@ -12,6 +13,8 @@ type Props = {
     startupCommand?: string;
     active: boolean;
     theme: Theme;
+    /** Active theme's palette, so the terminal shares the app's ground. */
+    palette: Palette;
     onExit: () => void;
 };
 
@@ -26,6 +29,7 @@ export function TerminalView({
                                  startupCommand,
                                  active,
                                  theme,
+                                 palette,
                                  onExit,
                              }: Readonly<Props>) {
     const host = useRef<HTMLDivElement>(null);
@@ -33,8 +37,10 @@ export function TerminalView({
     const termRef = useRef<Xterm | null>(null);
     const onExitRef = useRef(onExit);
     const themeRef = useRef(theme);
+    const paletteRef = useRef(palette);
     onExitRef.current = onExit;
     themeRef.current = theme;
+    paletteRef.current = palette;
 
     useEffect(() => {
         const el = host.current;
@@ -45,7 +51,7 @@ export function TerminalView({
             fontSize: 13,
             cursorBlink: true,
             scrollback: 10000,
-            theme: xtermTheme(themeRef.current),
+            theme: xtermTheme(themeRef.current, paletteRef.current),
         });
         const fit = new FitAddon();
         term.loadAddon(fit);
@@ -117,8 +123,10 @@ export function TerminalView({
 
     // Recolor in place rather than remounting, which would kill the shell.
     useEffect(() => {
-        if (termRef.current) termRef.current.options.theme = xtermTheme(theme);
-    }, [theme]);
+        if (termRef.current) {
+            termRef.current.options.theme = xtermTheme(theme, palette);
+        }
+    }, [theme, palette]);
 
     // Re-fit when this tab is revealed; it couldn't measure while hidden.
     useEffect(() => {

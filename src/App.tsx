@@ -21,6 +21,8 @@ import {type BranchTarget, BranchMenu} from "./components/BranchMenu";
 import {CheckpointDialog} from "./components/CheckpointDialog";
 import {Editor} from "./components/Editor";
 import {FileBrowser} from "./components/FileBrowser";
+import {FindBar} from "./components/FindBar";
+import {SearchPanel} from "./components/SearchPanel";
 import {ProjectSettingsDialog} from "./components/ProjectSettingsDialog";
 import {ProjectSidebar} from "./components/ProjectSidebar";
 import {SettingsDialog} from "./components/SettingsDialog";
@@ -46,11 +48,21 @@ import {
     trackBranch,
 } from "./lib/checkpoints";
 import {checkpointTitle} from "./lib/checkpointTitle";
-import {type EditorSettings, mergeSettings, type ProjectOverrides, themeCss,} from "./lib/editorSettings";
+import {
+    DEFAULT_ZOOM,
+    type EditorSettings,
+    mergeSettings,
+    paletteCss,
+    type ProjectOverrides,
+    stepZoom,
+    themeCss,
+    themeDef,
+} from "./lib/editorSettings";
+import type {FindApi} from "./lib/find";
 import {basename, dirname, isMarkdown, readFile, writeFile} from "./lib/files";
 import {loadProjectSettings} from "./lib/projectSettings";
 import {loadSession, saveSession} from "./lib/session";
-import {applyTheme, resolveTheme, type Theme, watchSystemTheme,} from "./lib/theme";
+import {applyTheme, injectStyle, resolveTheme, type Theme, watchSystemTheme,} from "./lib/theme";
 import {DEFAULT_SESSION, type EditorMode, type Project, type Session,} from "./types";
 
 const AUTOSAVE_MS = 1000;
@@ -93,6 +105,10 @@ export default function App() {
     const [projectSettingsFor, setProjectSettingsFor] = useState<Project | null>(
         null,
     );
+    /** Published by whichever editor view is mounted (DESIGN §8.1). */
+    const [findApi, setFindApi] = useState<FindApi | null>(null);
+    const [findOpen, setFindOpen] = useState(false);
+    const [findReplace, setFindReplace] = useState(false);
 
     const leftPanel = usePanelRef();
     const rightPanel = usePanelRef();
@@ -227,14 +243,28 @@ export default function App() {
     // Markdown styling is injected as a stylesheet rather than inline styles, so
     // it applies to nodes ProseMirror creates and destroys as you type.
     useEffect(() => {
-        let element = document.getElementById("md-theme");
-        if (!element) {
-            element = document.createElement("style");
-            element.id = "md-theme";
-            document.head.appendChild(element);
-        }
-        element.textContent = themeCss(editorSettings);
+        injectStyle("md-theme", themeCss(editorSettings));
     }, [editorSettings]);
+
+    // The theme's palette overrides the `:root` variables styles.css declares
+    // (DESIGN §5.3). Separate from md-theme so a theme switch does not rewrite
+    // the markdown sheet, and vice versa.
+    useEffect(() => {
+        injectStyle("app-palette", paletteCss(editorSettings));
+    }, [editorSettings]);
+
+    /**
+     * Set on the root rather than the editor panel: `--content-width` is declared
+     * at `:root` in terms of this, so scoping it lower would leave the measure
+     * reading the fallback. Nothing outside the editor's own rules refers to it,
+     * so app chrome stays put (DESIGN §7).
+     */
+    useEffect(() => {
+        document.documentElement.style.setProperty(
+            "--editor-zoom",
+            String(session.editorZoom ?? DEFAULT_ZOOM),
+        );
+    }, [session.editorZoom]);
 
     const toggle = (
         ref: RefObject<PanelImperativeHandle | null>,
@@ -331,6 +361,49 @@ export default function App() {
         }));
     }, []);
 
+    /**
+     * Opens a search hit. This forces **source** mode, because a line number only
+     * means something there: ProseMirror positions count node boundaries, so the
+     * same offset in WYSIWYG lands somewhere unrelated. Jumping to the right place
+     * in the wrong mode is not on offer, and silently not jumping would read as a
+     * broken result list (DESIGN §8.2).
+     */
+    const openAtLine = useCallback(
+        async (path: string, line: number) => {
+            let cursor = 0;
+            try {
+                const text = await readFile(path);
+                const lines = text.split("\n");
+                for (let i = 0; i < Math.min(line - 1, lines.length); i += 1) {
+                    cursor += lines[i].length + 1;
+                }
+            } catch {
+                // The file moved since the search ran; open it and let the normal
+                // load path report the failure.
+            }
+
+            const already = activePath === path;
+            setSession((s) => {
+                const openFiles = s.openFiles.some((f) => f.path === path)
+                    ? s.openFiles
+                    : [...s.openFiles, {path}];
+                return {
+                    ...s,
+                    mode: "source",
+                    activeFilePath: path,
+                    openFiles: openFiles.map((f) =>
+                        f.path === path ? {...f, cursor, cursorMode: "source"} : f,
+                    ),
+                };
+            });
+            // Switching files reloads on its own, but re-opening the file already on
+            // screen changes nothing the load effect watches — so the remount that
+            // applies the cursor has to be forced.
+            if (already) await loadInto(path);
+        },
+        [activePath, loadInto],
+    );
+
     // Load whenever the active file changes, including the startup restore.
     useEffect(() => {
         if (!ready || !activePath) return;
@@ -415,6 +488,76 @@ export default function App() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [activePath, content, readOnly, flushSave]);
+
+    // ---- zoom ----------------------------------------------------------------
+
+    const zoomBy = useCallback(
+        (direction: number) => {
+            setSession((s) => {
+                const next =
+                    direction === 0
+                        ? DEFAULT_ZOOM
+                        : stepZoom(s.editorZoom ?? DEFAULT_ZOOM, direction);
+                setStatus(`Editor zoom ${Math.round(next * 100)}%`);
+                return {...s, editorZoom: next};
+            });
+        },
+        [],
+    );
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (!e.metaKey && !e.ctrlKey) return;
+            // `=` is the unshifted key on the `+` cap, which is what Ctrl+= means
+            // on every keyboard layout that matters here; `+` covers the shifted
+            // form, and `_` the shifted `-`.
+            if (e.key === "=" || e.key === "+") {
+                e.preventDefault();
+                zoomBy(1);
+            } else if (e.key === "-" || e.key === "_") {
+                e.preventDefault();
+                zoomBy(-1);
+            } else if (e.key === "0") {
+                e.preventDefault();
+                zoomBy(0);
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [zoomBy]);
+
+    // ---- find ----------------------------------------------------------------
+
+    const closeFind = useCallback(() => {
+        setFindOpen(false);
+        findApi?.close();
+    }, [findApi]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (!e.metaKey && !e.ctrlKey) return;
+            const key = e.key.toLowerCase();
+            if (key === "f" && e.shiftKey) {
+                // Project-wide search lives in the side panel, so open both.
+                e.preventDefault();
+                rightPanel.current?.expand();
+                setSession((s) => ({
+                    ...s,
+                    rightCollapsed: false,
+                    sidePanel: "search",
+                }));
+            } else if (key === "f") {
+                e.preventDefault();
+                setFindOpen(true);
+            } else if (key === "h") {
+                e.preventDefault();
+                setFindOpen(true);
+                setFindReplace(true);
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [rightPanel]);
 
     // ---- checkpoints ---------------------------------------------------------
 
@@ -801,6 +944,23 @@ export default function App() {
 
     // ---- render --------------------------------------------------------------
 
+    /** Shared by both side panels, standing in for their panel title. */
+    const sideTabs = (
+        <div className="side-tabs" role="tablist" aria-label="Side panel">
+            {(["files", "search"] as const).map((id) => (
+                <button
+                    key={id}
+                    role="tab"
+                    aria-selected={session.sidePanel === id}
+                    className={session.sidePanel === id ? "active" : ""}
+                    onClick={() => patch({sidePanel: id})}
+                >
+                    {id === "files" ? "Files" : "Search"}
+                </button>
+            ))}
+        </div>
+    );
+
     return (
         <div className="app">
             <header className="header">
@@ -965,6 +1125,15 @@ export default function App() {
                                             </div>
                                         </div>
                                     )}
+                                    {findOpen && (
+                                        <FindBar
+                                            api={findApi}
+                                            showReplace={findReplace}
+                                            onShowReplaceChange={setFindReplace}
+                                            onClose={closeFind}
+                                            readOnly={readOnly}
+                                        />
+                                    )}
                                     <div
                                         className="editor-scroll-host"
                                         ref={scrollHost}
@@ -983,6 +1152,7 @@ export default function App() {
                                             revision={revision}
                                             mode={session.mode}
                                             theme={theme}
+                                            zoom={session.editorZoom ?? DEFAULT_ZOOM}
                                             onModeChange={(mode: EditorMode) => patch({mode})}
                                             value={content}
                                             readOnly={readOnly}
@@ -993,6 +1163,7 @@ export default function App() {
                                             }
                                             onChange={onChange}
                                             onCursorChange={onCursorChange}
+                                            onFindApi={setFindApi}
                                         />
                                     </div>
                                 </div>
@@ -1074,6 +1245,7 @@ export default function App() {
                                                     startupCommand={t.startupCommand}
                                                     active={t.id === session.activeTerminalId}
                                                     theme={theme}
+                                                    palette={themeDef(editorSettings.theme)[theme]}
                                                     onExit={() => closeTerminal(t.id)}
                                                 />
                                             ))}
@@ -1137,20 +1309,29 @@ export default function App() {
                             collapsible
                             collapsedSize={28}
                         >
-                            <FileBrowser
-                                root={activeProject?.dir ?? null}
-                                activePath={activePath}
-                                collapsed={filesCollapsed}
-                                onOpen={openFile}
-                                onCollapse={() => {
-                                    const p = filesPanel.current;
-                                    if (!p) return;
-                                    const wasCollapsed = p.isCollapsed();
-                                    if (wasCollapsed) p.expand();
-                                    else p.collapse();
-                                    setFilesCollapsed(!wasCollapsed);
-                                }}
-                            />
+                            {session.sidePanel === "search" ? (
+                                <SearchPanel
+                                    root={activeProject?.dir ?? null}
+                                    titleSlot={sideTabs}
+                                    onOpen={openAtLine}
+                                />
+                            ) : (
+                                <FileBrowser
+                                    root={activeProject?.dir ?? null}
+                                    activePath={activePath}
+                                    collapsed={filesCollapsed}
+                                    titleSlot={sideTabs}
+                                    onOpen={openFile}
+                                    onCollapse={() => {
+                                        const p = filesPanel.current;
+                                        if (!p) return;
+                                        const wasCollapsed = p.isCollapsed();
+                                        if (wasCollapsed) p.expand();
+                                        else p.collapse();
+                                        setFilesCollapsed(!wasCollapsed);
+                                    }}
+                                />
+                            )}
                         </Panel>
                         <Separator className="handle horizontal"/>
                         <Panel id="versions">

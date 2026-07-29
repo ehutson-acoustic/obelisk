@@ -1,8 +1,10 @@
 pub mod checkpoints;
+pub mod search;
 
 use std::path::PathBuf;
 
 use checkpoints::{Branches, Checkpoint, CheckpointStatus, RepoState};
+use search::{SearchOptions, SearchOutcome};
 
 /// The webview has no access to the process environment, so the shell to spawn
 /// has to come from the Rust side.
@@ -150,6 +152,17 @@ fn git_stash(project: PathBuf, label: String) -> Result<bool, String> {
     checkpoints::stash(&project, &label)
 }
 
+/// Project-wide search (DESIGN §8.2). Synchronous: the walk is fast enough that
+/// streaming results back over events would add complexity for no felt gain.
+#[tauri::command]
+fn search_project(
+    project: PathBuf,
+    query: String,
+    options: SearchOptions,
+) -> Result<SearchOutcome, String> {
+    search::search(&project, &query, &options)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -165,6 +178,8 @@ pub fn run() {
             checkpoint_create,
             checkpoint_from_content,
             checkpoint_list,
+            checkpoint_restore,
+            search_project
             checkpoint_content,
             repo_state,
             branch_list,

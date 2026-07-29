@@ -711,6 +711,258 @@ button:focus-visible {
     color: var(--accent);
 }
 
+/* ---- find bar ---------------------------------------------------------- */
+
+.find-bar {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+}
+
+.find-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.find-input {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg);
+}
+
+.find-input:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* A half-typed regex is the usual reason, so this warns rather than alarms. */
+.find-input.invalid {
+    border-color: var(--danger);
+}
+
+.find-input input {
+    border: none;
+    border-radius: 6px;
+    background: none;
+}
+
+.find-input input:focus-visible {
+    outline: none;
+}
+
+.find-count {
+    flex: none;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-muted);
+    white-space: nowrap;
+}
+
+.find-toggles {
+    flex: none;
+    display: flex;
+    gap: 2px;
+}
+
+.icon-btn.on {
+    background: var(--bg-sunken);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* ---- side panel tabs --------------------------------------------------- */
+
+.side-tabs {
+    display: flex;
+    gap: 2px;
+}
+
+.side-tabs button {
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.side-tabs button.active {
+    background: var(--bg-sunken);
+    color: var(--fg);
+}
+
+/* ---- project search ---------------------------------------------------- */
+
+.search-controls {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-capped {
+    display: block;
+    padding: 6px 10px;
+}
+
+.search-file {
+    border-bottom: 1px solid var(--border);
+}
+
+.search-file-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 5px 8px;
+    text-align: left;
+    color: var(--fg-muted);
+}
+
+.search-file-head:hover {
+    background: var(--bg-sunken);
+}
+
+.search-file-name {
+    flex: 1;
+    overflow: hidden;
+    /* Truncates from the left so the filename stays visible on a deep path. */
+    direction: rtl;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.search-file-count {
+    flex: none;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.search-hit {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    padding: 3px 8px 3px 22px;
+    text-align: left;
+}
+
+.search-hit:hover {
+    background: var(--bg-sunken);
+}
+
+.search-line {
+    flex: none;
+    min-width: 2.5em;
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--fg-muted);
+}
+
+.search-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+}
+
+.search-text mark {
+    padding: 0 1px;
+    border-radius: 2px;
+    background: var(--banner-bg);
+    color: var(--fg);
+    box-shadow: inset 0 0 0 1px var(--banner-border);
+}
+
+/* ---- theme picker ------------------------------------------------------ */
+
+.theme-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 6px;
+}
+
+.theme-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.theme-card:hover {
+    background: var(--bg-sunken);
+}
+
+.theme-card.active {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Three bars on the theme's own ground: enough to tell the palettes apart at
+   a glance without rendering a whole preview document. */
+.theme-swatch {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    width: 34px;
+    height: 34px;
+    padding: 6px;
+    border: 1px solid;
+    border-radius: 6px;
+}
+
+.theme-swatch span {
+    height: 3px;
+    border-radius: 2px;
+}
+
+.theme-swatch span:nth-child(1) {
+    width: 100%;
+}
+
+.theme-swatch span:nth-child(2) {
+    width: 70%;
+}
+
+.theme-swatch span:nth-child(3) {
+    width: 45%;
+}
+
+.theme-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.theme-card-text small {
+    font-size: 11px;
+    color: var(--fg-muted);
+}
+
 /* ---- editor ------------------------------------------------------------ */
 
 .editor-wrap {
@@ -774,13 +1026,22 @@ button:focus-visible {
     min-height: 100%;
 }
 
+/* The theme's measure (DESIGN §5.3). `none` for themes that want the full
+   width, which is why this is a max-width rather than a width. */
+.crepe-host {
+    max-width: var(--content-width, none);
+    margin: 0 auto;
+}
+
 .cm-host .cm-editor {
     height: 100%;
 }
 
 .cm-host .cm-scroller {
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-    font-size: 13px;
+    /* Scaled here rather than by CodeMirror, which cannot be told a font size
+       reactively. `Source` calls requestMeasure() so its metrics keep up. */
+    font-size: calc(13px * var(--editor-zoom, 1));
 }
 
 /* Frontmatter renders as a native <details>, collapsed by default. */
