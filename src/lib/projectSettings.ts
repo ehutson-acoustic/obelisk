@@ -4,8 +4,9 @@ import type {ProjectOverrides} from "./editorSettings";
 
 /**
  * DESIGN §5.1/§5.2 — `.obelisk/settings.json`, stored sparsely so absent keys
- * inherit the app default. Only `.obelisk/git/` is gitignored, so this file
- * stays committable and project styling can be shared.
+ * inherit the app default. The only thing in `.obelisk/` now that checkpoints
+ * live in the project's own repo, and deliberately committable so project
+ * settings can be shared.
  */
 
 async function settingsPath(dir: string) {

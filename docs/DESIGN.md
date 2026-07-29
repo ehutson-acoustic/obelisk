@@ -40,9 +40,10 @@ CSS-variable theming, which the theming requirement needs regardless.
 
 ### 1.2 Why shell out to git
 
-The shadow-repo invocation is two CLI flags, and
-`git log --format=%h%x00%s%x00%ct` returns exactly the hash / title / timestamp the versions list needs, already parsed.
-No native compilation step, and behavior matches what the user sees running git by hand.
+`git log --format=%h%x00%s%x00%ct` returns exactly the hash / title / timestamp the versions list needs, already parsed,
+and the plumbing commands §3.1 leans on (`hash-object`, `read-tree`, `commit-tree`, `update-ref`) are far easier to reach
+correctly through the CLI than through a library. No native compilation step, and behavior matches what the user sees
+running git by hand — which matters more now that the editor and the user commit to the same branch.
 
 Cost: requires `git` on `PATH`. Detected at startup with a clear message if absent. Acceptable — anyone running Claude
 Code already has it.
@@ -113,28 +114,40 @@ frontmatter, which is the worst failure mode available in this app. Round-trips 
 
 ## 3. Checkpoints
 
-### 3.1 Shadow repository
+### 3.1 The project's own repository
 
-Checkpoints live in a **shadow repo** at `.obelisk/git` — a separate
-`--git-dir` sharing the project directory as its `--work-tree`.
+Checkpoints are ordinary commits in the **project's own git repository**, on whatever branch is checked out.
 
-The alternative was committing to the project's own repo, as originally specked. Rejected because most target folders
-are already repos with real commits, branches, and remotes. Auto-committing on every checkpoint would interleave editor
-noise into that history permanently, and the editor would be writing to the same index and `HEAD` the user manipulates
-by hand — breaking during rebases, merges, or staged work.
+This reverses an earlier decision. Checkpoints originally lived in a shadow repo at `.obelisk/git` — a separate
+`--git-dir` sharing the project directory as its `--work-tree` — specifically to keep editor noise out of real history
+and to avoid writing to the `HEAD` and index the user manipulates by hand. Living with it showed the cost was higher
+than the benefit: a second, invisible history that never pushes, cannot be reviewed, is not reachable from any normal git
+command the user already knows, and has no relationship to the branch they are actually working on. Real commits on a
+real branch are worth the noise.
 
-The shadow repo behaves ***identically*** whether the folder is already a repo, and because it shares the working tree
-it honors the project's existing
-`.gitignore` for free. A default exclude list (`node_modules`, `target`,
-`.venv`) covers projects that lack one.
+What made the reversal safe is not that the original objection was wrong — it was right — but that each half of it is now
+handled explicitly:
 
-Checkpoints are inspectable with ordinary git:
+* **The index.** Commits are assembled in a **scratch index** (`GIT_INDEX_FILE` pointing at a throwaway file in the git
+  dir), never with `git add`. `read-tree HEAD` → `hash-object` → `update-index` → `write-tree` → `commit-tree` →
+  `update-ref`, with the old ref value passed so a concurrent update loses rather than being clobbered. Staged work on
+  every other path survives a checkpoint untouched.
 
-```bash
-git --git-dir=.obelisk/git --work-tree=. log
-```
+* **In-flight operations.** Checkpointing is refused outright while HEAD is detached or a rebase, merge, cherry-pick,
+  revert, or bisect is in progress — detected from the marker files git itself leaves in the git dir. The button
+  disables and says which.
 
-Cost: checkpoints are local-only history and do not push to a remote.
+* **Ignored files.** A gitignored file is never committed. Harmless in a shadow repo; in real history it would push a
+  file the user deliberately untracked.
+
+Commits use the **user's own git identity**, because they are the user's commits. They are never signed, even with
+`commit.gpgsign` set: a passphrase prompt would block an autosave. They are made with `commit-tree`, which does not run
+hooks, so a checkpoint deliberately bypasses `pre-commit` and `commit-msg`.
+
+Checkpoints carry an `Obelisk-Checkpoint: 1` trailer so they can be told apart from hand-made commits in the one shared
+history (§3.5).
+
+A folder that is not a repository gets one from `git init` on its first checkpoint, as the shadow repo did.
 
 ### 3.2 Scope
 
@@ -143,6 +156,14 @@ Commits are **active-file-only**.
 Known tradeoff, accepted deliberately: a checkpoint is therefore not a full restore point. Rolling back a document will
 not roll back code Claude changed alongside it, so the project can reach a state that never actually existed. The
 per-file versions sidebar maps cleanly to this scope.
+
+One consequence of §3.1 that has no clean answer: after committing, the real index entry **for that path** is pointed at
+the new blob. Leaving it stale was the original intent and does not work — the index would still hold the pre-checkpoint
+blob, so `git status` reports a staged *reversal* of the file, the user's next `git commit` would undo the checkpoint, and
+a two-way `git switch` reads the index and gets the wrong answer about what the file is. The cost is that a version of
+that same file the user had staged is superseded. Refusing to checkpoint instead was rejected outright: the
+before-an-external-change trigger (§3.4) is what rescues unsaved writing and must never decline. `CheckpointStatus.staged`
+exists so the dialog warns first.
 
 ### 3.3 Title generation
 
@@ -163,24 +184,60 @@ editable. Instant, offline, no tokens.
 
 ### 3.5 Versions list
 
-Rows render as:
+`git log -- <path>` on the project's repo, so the list is the file's **whole history** — the user's own commits included,
+not only the editor's. That is the payoff of §3.1: a file can be restored to how it looked in any commit, not just one
+Obelisk happened to make. Rows render as:
 
-> `Edit 'Installation' · 4h ago · a3f9c21`
+> `⌷ Edit 'Installation' · 4h ago · a3f9c21`
+>
+> `Fix the install steps · 3d ago · Real User · 91be40c`
 
-Title, relative timestamp, short hash. Filtered per-file via
-`git log -- <path>`.
+Title, relative timestamp, short hash; the author for commits the editor did not make, and a mark for the ones it did.
+A **Checkpoints only** toggle in the panel header filters to trailer-tagged commits, because a long-lived file in a real
+repo has far more commits than a shadow repo ever accumulated. The toggle persists in `session.json`.
 
 ### 3.6 Restore
 
 Clicking a version:
 
-1. Checkpoints the current content **if it differs** from the last checkpoint.
-2. `git checkout <sha> -- <path>`.
-3. Reloads the editor.
+1. Checkpoints the current content **if it differs** from HEAD.
+2. Reads the file's blob at that commit (`cat-file blob <sha>:<path>`).
+3. Writes it through the editor's **own save path**, then reloads.
+
+Step 3 is deliberately not `git checkout <sha> -- <path>`. Writing it ourselves means the write passes through the
+`lastWrite` ref, so the file watcher recognises its own echo instead of treating the restore as an external change; and it
+leaves the index alone, which `checkout` would not.
 
 History stays linear and append-only, so every restore is itself just another forward state and nothing is ever
 stranded. No detached `HEAD` to explain or recover from. A full-repo checkout was rejected for exactly that reason — it
 would rewrite unrelated files and strand the user in a state the UI would have to talk them out of.
+
+### 3.7 Branch picker
+
+A dropdown beside the Checkpoint button showing the current branch, modeled on GitHub's: a filter field, local branches
+with the current one checked and the default badged, a **Remote** section of remote-tracking branches that have no local
+counterpart, and a `Create branch "<typed>" from <current>` row that appears when the filter matches nothing. New
+branches are created from the current HEAD and switched to immediately. No tags tab, no view-all.
+
+Picking a remote entry runs `switch --track origin/<name>`, creating the local branch. The list reads local refs only —
+there is deliberately no automatic `fetch`, so opening the dropdown never blocks on the network.
+
+A detached HEAD shows the short sha instead of a name, which is also when checkpointing is disabled (§3.1).
+
+### 3.8 Switching branches
+
+`git switch` rewrites the working tree, so the editor has to assume open files changed underneath it.
+
+1. Flush the pending autosave and **checkpoint the active buffer if it is dirty**, so prose is recoverable no matter what
+   happens next. Only the active file can be dirty — it is the only one with an in-memory buffer.
+2. `git switch`. If git refuses, its stderr is shown **verbatim** in the dropdown with two buttons: *Stash changes and
+   switch* and *Cancel*. Nothing is stashed without a click, and the stash excludes untracked files — `switch` never
+   refuses because of them, so sweeping them away would discard work (possibly a file Claude just wrote) for nothing.
+3. On success, tabs for files that do not exist on the new branch are closed; the rest reload through the normal path.
+   Only files under the active project's directory are touched.
+
+Auto-stashing on every switch was rejected: it makes switching always succeed, at the cost of silently removing
+in-flight work the user did not ask to put away.
 
 ***
 
@@ -212,7 +269,8 @@ The command is written into the interactive shell rather than exec'd, so the tab
 * **App defaults** — OS-appropriate config directory, resolved by Tauri (`~/.config/Obelisk` on Linux,
   `~/Library/Application Support/…` on macOS).
 
-* **Project overrides** — `.obelisk/settings.json`, beside the shadow repo.
+* **Project overrides** — `.obelisk/settings.json`. This is now the only thing `.obelisk/` holds; the `git/`
+  subdirectory went away with §3.1.
 
 ### 5.2 Inheritance
 
@@ -245,11 +303,14 @@ editor.
 
 ### 5.4 .gitignore
 
-A one-time prompt before adding `.obelisk/git/` to the project's real
-`.gitignore`. Never edited silently.
+Nothing. Obelisk does not touch the project's `.gitignore`.
 
-Only the `git/` subdirectory is ignored — `settings.json` stays committable, so project theming can be shared with
-collaborators if desired.
+There used to be a one-time prompt offering to add `.obelisk/git/`, which existed only because the shadow repo wrote
+history into the project directory. With §3.1 there is no such directory, and `.obelisk/settings.json` was always meant
+to be committable so project settings can be shared. The prompt, and the `gitignorePrompted` session field that
+remembered the answer, are gone.
+
+Obelisk does *read* the project's ignore rules: a gitignored file cannot be checkpointed (§3.1).
 
 ***
 

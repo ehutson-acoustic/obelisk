@@ -563,6 +563,24 @@ button:focus-visible {
     padding-right: 8px;
 }
 
+.panel-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding-right: 6px;
+    font-size: 11px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.panel-toggle input {
+    width: auto;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
 /* ---- versions ---------------------------------------------------------- */
 
 .version-row {
@@ -582,10 +600,20 @@ button:focus-visible {
 
 .version-title {
     grid-area: title;
+    display: flex;
+    align-items: center;
+    gap: 5px;
     font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* The list mixes the editor's commits with the user's own, so the editor's are
+   marked rather than the other way round — those are the majority in practice. */
+.version-mark {
+    flex: none;
+    color: var(--accent);
 }
 
 .version-meta {
@@ -619,6 +647,16 @@ button:focus-visible {
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
+}
+
+.dialog-warn {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--banner-border);
+    background: var(--banner-bg);
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 .dialog-text code,
@@ -1065,6 +1103,157 @@ button:focus-visible {
     width: 32px;
     height: 26px;
     padding: 2px;
+}
+
+/* ---- branch picker ----------------------------------------------------- */
+
+.branch-btn {
+    max-width: 200px;
+}
+
+.branch-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A detached HEAD shows a sha instead of a name, and checkpointing is off. */
+.branch-name.detached {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--fg-muted);
+}
+
+.popover {
+    z-index: 102;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.branch-popover {
+    display: flex;
+    flex-direction: column;
+    width: 320px;
+    max-height: 70vh;
+    padding: 8px;
+    gap: 8px;
+}
+
+.branch-head {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.branch-filter {
+    flex: none;
+}
+
+.branch-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -4px;
+}
+
+.branch-group + .branch-group {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+}
+
+.branch-group-label {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.branch-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: left;
+}
+
+.branch-item:hover:not(:disabled),
+.branch-item:focus-visible {
+    background: var(--bg-sunken);
+}
+
+/* Reserved even when empty, so names stay aligned whether or not a row is the
+   current branch. */
+.branch-check {
+    flex: none;
+    width: 13px;
+    display: inline-flex;
+    color: var(--accent);
+}
+
+.branch-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.branch-item.current .branch-item-name {
+    font-weight: 600;
+}
+
+.branch-badge {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    font-size: 10px;
+    color: var(--fg-muted);
+}
+
+.branch-ref {
+    flex: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--fg-muted);
+}
+
+.branch-empty {
+    padding: 10px;
+    font-size: 12px;
+    color: var(--fg-muted);
+}
+
+.branch-error {
+    flex: none;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--banner-border);
+    background: var(--banner-bg);
+}
+
+/* git's message is shown verbatim; it is usually multi-line and names files. */
+.branch-error pre {
+    margin: 0 0 8px;
+    max-height: 120px;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    white-space: pre-wrap;
+}
+
+.branch-error-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
 }
 
 /* Above .dialog, so a menu opened from inside one still lands on top. */
