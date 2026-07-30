@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import {Crepe} from "@milkdown/crepe";
 import {beforeAll, describe, expect, it} from "vitest";
-import {frontmatterRemark, frontmatterSchema} from "./frontmatter";
+import {
+    frontmatterDom,
+    frontmatterRemark,
+    frontmatterSchema,
+    isToggleMutation,
+} from "./frontmatter";
 
 const WITH_FRONTMATTER = `---
 title: Test Note
@@ -94,5 +99,61 @@ describe("frontmatter round-trip", () => {
     it("leaves documents without frontmatter untouched", async () => {
         const plain = "# Just a heading\n\nAnd a paragraph.\n";
         expect(await roundTrip(plain, true)).toBe(plain);
+    });
+});
+
+/**
+ * The box shipped shut twice: once because WebKit will not toggle a `<details>`
+ * inside `contenteditable`, and again because ProseMirror's MutationObserver
+ * reverted the `open` attribute as soon as it was set. Both failures looked
+ * identical from the outside — a click that did nothing — so the toggle is
+ * pinned here rather than left to inspection.
+ */
+describe("frontmatter disclosure", () => {
+    it("starts closed and opens on a summary click", () => {
+        const {dom, summary} = frontmatterDom();
+        expect(dom.open).toBe(false);
+
+        summary.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}));
+        expect(dom.open).toBe(true);
+    });
+
+    it("closes again on a second click", () => {
+        const {dom, summary} = frontmatterDom();
+        for (const expected of [true, false, true]) {
+            summary.dispatchEvent(
+                new MouseEvent("click", {bubbles: true, cancelable: true}),
+            );
+            expect(dom.open).toBe(expected);
+        }
+    });
+
+    it("cancels the click so a native toggle cannot double-fire it", () => {
+        const {summary} = frontmatterDom();
+        const event = new MouseEvent("click", {bubbles: true, cancelable: true});
+        summary.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("exposes the code element as the editable content hole", () => {
+        const {dom, contentDOM} = frontmatterDom();
+        expect(contentDOM.tagName).toBe("CODE");
+        expect(contentDOM.closest("details")).toBe(dom);
+        // The label must not be editable, or the caret lands in it.
+        expect(dom.querySelector("summary")?.getAttribute("contenteditable")).toBe(
+            "false",
+        );
+    });
+
+    it("tells ProseMirror to ignore the attribute change the toggle causes", () => {
+        const {dom, contentDOM} = frontmatterDom();
+        // What setting `open` produces, and what used to trigger the redraw that
+        // snapped the box shut.
+        expect(isToggleMutation({type: "attributes", target: dom}, dom)).toBe(true);
+        // A real edit to the YAML must still reach ProseMirror.
+        expect(
+            isToggleMutation({type: "characterData", target: contentDOM}, dom),
+        ).toBe(false);
+        expect(isToggleMutation({type: "childList", target: dom}, dom)).toBe(false);
     });
 });

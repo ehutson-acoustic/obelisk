@@ -110,10 +110,23 @@ Without this, remark parses a leading `---` block as a thematic break followed b
 serialized document straight back to disk, that mangling would be persisted — silent corruption of any file with
 frontmatter, which is the worst failure mode available in this app. Round-trips byte-identically.
 
-The bar is a `<details>`, but the **disclosure toggle is ours, not the browser's**. WebKit does not open a `<details>`
-from a summary click inside a `contenteditable` region, so in WKWebView — every macOS build — the box simply never
-opened. A ProseMirror plugin cancels the click and sets `open` itself, which also guarantees exactly one toggle rather
-than racing a native one that may or may not fire.
+The bar is a `<details>`, but it is rendered by a **node view** and the disclosure toggle is ours, not the browser's.
+
+Two separate things kept it shut, and they look identical from the outside — a click that does nothing:
+
+* WebKit does not open a `<details>` from a summary click inside a `contenteditable` region, and WKWebView is every macOS
+  build. So the native toggle never fired.
+* Setting `open` by hand does not survive either: it is an attribute mutation *inside* the node's DOM, and ProseMirror's
+  MutationObserver reads any such mutation as the document having been edited behind its back. It redraws the node from
+  the document, closing the box in the same tick it opened.
+
+Only the second one explains why an event handler alone was not enough. `ignoreMutation` can only be answered by a node
+view, which is why this is a node view rather than a plugin — it reports the toggle's own attribute change as
+uninteresting while still letting real edits to the YAML through. The click is also cancelled, so exactly one toggle
+happens whether or not the browser would have handled it.
+
+`frontmatter.test.ts` covers the toggle directly, because both failures were invisible to type-checking and to the
+round-trip tests.
 
 ***
 
