@@ -106,6 +106,50 @@ export function isToggleMutation(
     return mutation.type === "attributes" && mutation.target === dom;
 }
 
+/** Shape of a ProseMirror resolved position, narrowed to what the walk needs. */
+type Resolved = {
+    depth: number;
+    node: (depth: number) => { type: { name: string } } | undefined;
+};
+
+/** True when a resolved position sits anywhere inside a frontmatter node. */
+export function isInsideFrontmatter(pos: Resolved): boolean {
+    for (let depth = pos.depth; depth > 0; depth -= 1) {
+        if (pos.node(depth)?.type.name === "frontmatter") return true;
+    }
+    return false;
+}
+
+/** Class the stylesheet keys the toolbar off. */
+export const FRONTMATTER_SELECTION_CLASS = "frontmatter-selection";
+
+/**
+ * Suppresses Crepe's selection toolbar while the selection is in frontmatter.
+ *
+ * Bold, italic and link are meaningless in YAML and applying one would corrupt
+ * it, but Crepe's toolbar shows for any non-empty text selection and exposes no
+ * `shouldShow` hook to configure. Marking the document root and letting CSS hide
+ * it is the least invasive lever available — the toolbar mounts outside the
+ * editor's own subtree, so a marker on the editor would not reach it.
+ */
+export const frontmatterToolbarGuard = $prose(
+    () =>
+        new Plugin({
+            view: () => {
+                const mark = (on: boolean) =>
+                    document.documentElement.classList.toggle(
+                        FRONTMATTER_SELECTION_CLASS,
+                        on,
+                    );
+                return {
+                    update: (view) =>
+                        mark(isInsideFrontmatter(view.state.selection.$from)),
+                    destroy: () => mark(false),
+                };
+            },
+        }),
+);
+
 export const frontmatterView = $prose(
     () =>
         new Plugin({

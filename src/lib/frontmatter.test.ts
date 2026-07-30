@@ -5,6 +5,7 @@ import {
     frontmatterDom,
     frontmatterRemark,
     frontmatterSchema,
+    isInsideFrontmatter,
     isToggleMutation,
 } from "./frontmatter";
 
@@ -155,5 +156,40 @@ describe("frontmatter disclosure", () => {
             isToggleMutation({type: "characterData", target: contentDOM}, dom),
         ).toBe(false);
         expect(isToggleMutation({type: "childList", target: dom}, dom)).toBe(false);
+    });
+});
+
+/**
+ * Stands in for a ProseMirror resolved position: `node(depth)` walks outward
+ * from the cursor, `depth` 0 being the document itself.
+ */
+const at = (...ancestors: string[]) => ({
+    depth: ancestors.length,
+    node: (depth: number) =>
+        depth === 0 ? {type: {name: "doc"}} : {type: {name: ancestors[depth - 1]}},
+});
+
+describe("frontmatter selection guard", () => {
+    it("recognises a selection directly inside the node", () => {
+        expect(isInsideFrontmatter(at("frontmatter"))).toBe(true);
+    });
+
+    it("recognises one nested deeper inside it", () => {
+        expect(isInsideFrontmatter(at("frontmatter", "paragraph"))).toBe(true);
+    });
+
+    it("leaves ordinary prose alone, so the toolbar still works there", () => {
+        expect(isInsideFrontmatter(at("paragraph"))).toBe(false);
+        expect(isInsideFrontmatter(at("blockquote", "paragraph"))).toBe(false);
+    });
+
+    it("does not match the document itself at depth 0", () => {
+        expect(isInsideFrontmatter({depth: 0, node: () => ({type: {name: "doc"}})})).toBe(
+            false,
+        );
+    });
+
+    it("tolerates a depth with no node rather than throwing", () => {
+        expect(isInsideFrontmatter({depth: 2, node: () => undefined})).toBe(false);
     });
 });

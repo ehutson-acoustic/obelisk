@@ -125,8 +125,18 @@ view, which is why this is a node view rather than a plugin — it reports the t
 uninteresting while still letting real edits to the YAML through. The click is also cancelled, so exactly one toggle
 happens whether or not the browser would have handled it.
 
-`frontmatter.test.ts` covers the toggle directly, because both failures were invisible to type-checking and to the
-round-trip tests.
+Two further things follow from the box being editable rich-text content it never really was:
+
+* **Crepe's selection toolbar is suppressed inside it.** Bold, italic and link mean nothing in YAML and applying one
+  would corrupt it, but Crepe shows the toolbar for any non-empty text selection and exposes no `shouldShow` hook. The
+  plugin marks the document root and the stylesheet hides the toolbar — the marker has to be that high because the
+  toolbar mounts outside the editor's subtree.
+* **The YAML takes the body colour**, not Crepe's inline-code red. Crepe paints every `code` element through
+  `.milkdown .ProseMirror code`, which catches this one too; the text here is body text that happens to be monospaced,
+  not a code span.
+
+`frontmatter.test.ts` covers the toggle and the selection predicate directly, because these failures were invisible to
+type-checking and to the round-trip tests.
 
 ***
 

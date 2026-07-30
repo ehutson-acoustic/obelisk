@@ -29,7 +29,12 @@ import {
 } from "prosemirror-search";
 import {useEffect, useRef} from "react";
 import {EMPTY_FIND_QUERY, type FindApi, type FindQuery, locate, type MatchCount, NO_MATCHES,} from "../lib/find";
-import {frontmatterRemark, frontmatterSchema, frontmatterView,} from "../lib/frontmatter";
+import {
+    frontmatterRemark,
+    frontmatterSchema,
+    frontmatterToolbarGuard,
+    frontmatterView,
+} from "../lib/frontmatter";
 import type {Theme} from "../lib/theme";
 import {buildToolbar} from "../lib/toolbar";
 import type {EditorMode} from "../types";
@@ -157,7 +162,11 @@ function Wysiwyg({
 
         // Must be registered before create(), which is when defaultValue is parsed.
         crepe.addFeature((editor) => {
-            editor.use(frontmatterRemark).use(frontmatterSchema).use(frontmatterView);
+            editor
+                .use(frontmatterRemark)
+                .use(frontmatterSchema)
+                .use(frontmatterView)
+                .use(frontmatterToolbarGuard);
             // prosemirror-search resolves the same prosemirror-state instance
             // Milkdown does, so its plugin key matches and the state field is found.
             editor.use($prose(() => pmSearch()));

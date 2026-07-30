@@ -1097,6 +1097,25 @@ button:focus-visible {
     white-space: pre;
 }
 
+/* Crepe paints every `code` element — this one included — with its inline-code
+   red and fill, via `.milkdown .ProseMirror code`. That is two classes plus an
+   element, so out-specifying it needs the extra class. The YAML here is body
+   text that happens to be monospaced, not a code span: it takes the body colour
+   and sits on the box's own surface. */
+.milkdown .ProseMirror .frontmatter code {
+    color: var(--fg);
+    background: none;
+    padding: 0;
+}
+
+/* Crepe's selection toolbar has no `shouldShow` hook, and bold / italic / link
+   mean nothing in YAML — applying one would corrupt the frontmatter. The marker
+   sits on the root because the toolbar mounts outside the editor's subtree, and
+   `!important` is needed because the tooltip positions itself inline. */
+:root.frontmatter-selection .milkdown-toolbar {
+    display: none !important;
+}
+
 .conflict-banner {
     display: flex;
     align-items: center;
