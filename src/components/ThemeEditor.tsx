@@ -23,21 +23,38 @@ const FIELDS: {
     {key: "fontWeight", label: "Weight", type: "text", placeholder: "400"},
     {key: "lineHeight", label: "Line height", type: "text", placeholder: "1.7"},
     {key: "color", label: "Color", type: "color"},
+    {key: "backgroundColor", label: "Background", type: "color"},
 ];
 
 /**
  * `<input type="color">` only accepts `#rrggbb`, so the themed defaults — which
  * are `var(--fg)` and friends — show as black unless they're resolved first.
+ *
+ * `fallbackVar` is what an absent or transparent value should *look* like:
+ * backgrounds are usually unset, and showing black for "no background" reads as
+ * a real, very wrong choice.
  */
-function toHex(value: string | undefined): string {
+function toHex(value: string | undefined, fallbackVar = ""): string {
     const raw = value?.trim();
-    if (!raw) return "#000000";
+    const resolveVar = (name: string) =>
+        getComputedStyle(document.documentElement)
+            .getPropertyValue(name)
+            .trim();
+
+    if (!raw || raw === "transparent" || raw === "none") {
+        const fallback = fallbackVar ? resolveVar(fallbackVar) : "";
+        return /^#[0-9a-f]{6}$/i.test(fallback) ? fallback : "#000000";
+    }
     const resolved = raw.startsWith("var(")
-        ? getComputedStyle(document.documentElement)
-            .getPropertyValue(raw.slice(4, -1).trim())
-            .trim()
+        ? resolveVar(raw.slice(4, -1).trim())
         : raw;
     return /^#[0-9a-f]{6}$/i.test(resolved) ? resolved : "#000000";
+}
+
+/** A background is meaningfully absent in a way a colour input cannot express. */
+function isTransparent(value: string | undefined): boolean {
+    const raw = value?.trim();
+    return !raw || raw === "transparent" || raw === "none";
 }
 
 function FontSelect({
@@ -81,7 +98,7 @@ type Props = {
 };
 
 /**
- * Per-component markdown styling, layered over whatever theme is active. Edits
+ * Per-component Markdown styling, layered over whatever theme is active. Edits
  * here are stored as overrides rather than forking the theme, so switching themes
  * keeps them and resetting a component returns it to the theme's own value.
  */
@@ -155,6 +172,27 @@ export function ThemeEditor({settings, onChange}: Readonly<Props>) {
                                     fonts={fonts}
                                     onChange={(next) => setProperty("fontFamily", next)}
                                 />
+                            ) : field.key === "backgroundColor" ? (
+                                // A colour input has no way to say "no background", so
+                                // None sits beside it rather than being unreachable.
+                                <div className="field-row">
+                                    <input
+                                        type="color"
+                                        value={toHex(style.backgroundColor, "--bg")}
+                                        onChange={(e) =>
+                                            setProperty("backgroundColor", e.target.value)
+                                        }
+                                    />
+                                    <button
+                                        className={`btn${isTransparent(style.backgroundColor) ? " primary" : ""}`}
+                                        title="No background"
+                                        onClick={() =>
+                                            setProperty("backgroundColor", "transparent")
+                                        }
+                                    >
+                                        None
+                                    </button>
+                                </div>
                             ) : (
                                 <input
                                     type={field.type}
@@ -173,6 +211,7 @@ export function ThemeEditor({settings, onChange}: Readonly<Props>) {
                     <div
                         className="theme-preview"
                         style={{
+                            backgroundColor: style.backgroundColor,
                             fontFamily: style.fontFamily,
                             fontSize: style.fontSize,
                             fontWeight: style.fontWeight as never,

@@ -44,12 +44,9 @@ export function VersionsPanel({
                 {busy && <span className="panel-note">working…</span>}
                 {hasFile && !gitMissing && checkpoints.length > 0 && (
                     <label className="panel-toggle" title="Hide commits Obelisk did not make">
-                        <input
-                            type="checkbox"
-                            checked={checkpointsOnly}
-                            onChange={(e) => onCheckpointsOnlyChange(e.target.checked)}
-                        />
-                        Checkpoints only
+                        <input type="checkbox" checked={checkpointsOnly}
+                               onChange={(e) => onCheckpointsOnlyChange(e.target.checked)}
+                        />Checkpoints only
                     </label>
                 )}
             </div>

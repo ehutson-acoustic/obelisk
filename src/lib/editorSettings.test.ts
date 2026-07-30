@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {contrastRatio} from "./contrast";
+import {contrastRatio, readableFg} from "./contrast";
 import {
     BASE,
     DEFAULT_EDITOR_SETTINGS,
@@ -139,6 +139,27 @@ describe("themeCss", () => {
     it("out-specifies Crepe by targeting paragraphs as well as the container", () => {
         expect(themeCss(app)).toContain(".milkdown .ProseMirror p");
     });
+
+    it("gives inline code the theme's own recessed surface, not Crepe's fill", () => {
+        expect(themeCss(app)).toContain("background-color: var(--bg-sunken)");
+    });
+
+    it("emits a background set on any component", () => {
+        const css = themeCss({
+            ...app,
+            components: {blockquote: {backgroundColor: "#ff0000"}},
+        });
+        expect(css).toContain("background-color: #ff0000");
+    });
+
+    it("omits a background nobody set, rather than forcing one", () => {
+        // h1 has no background in BASE, so no declaration should appear for it.
+        const h1Block = themeCss(app)
+            .split("\n\n")
+            .find((block) => block.startsWith(".milkdown .ProseMirror h1"));
+        expect(h1Block).toBeDefined();
+        expect(h1Block).not.toContain("background-color");
+    });
 });
 
 describe("paletteCss", () => {
@@ -152,6 +173,28 @@ describe("paletteCss", () => {
 
     it("declares color-scheme per mode so native widgets follow", () => {
         expect(paletteCss(app)).toContain("color-scheme: dark");
+    });
+
+    /**
+     * The primary button's label sits on the accent. Dark themes carry light
+     * accents, so a hardcoded white would be unreadable in half the roster.
+     */
+    it("derives a readable foreground for the accent in every theme and mode", () => {
+        for (const [id, theme] of Object.entries(THEMES)) {
+            const css = paletteCss({...app, theme: id});
+            const emitted = [...css.matchAll(/--accent-fg: (#[0-9a-f]{6});/g)].map(
+                (m) => m[1],
+            );
+            expect(emitted).toHaveLength(2);
+            expect(emitted[0]).toBe(readableFg(theme.light.accent));
+            expect(emitted[1]).toBe(readableFg(theme.dark.accent));
+            for (const [fg, palette] of [
+                [emitted[0], theme.light],
+                [emitted[1], theme.dark],
+            ] as const) {
+                expect(contrastRatio(fg, palette.accent)).toBeGreaterThanOrEqual(4.5);
+            }
+        }
     });
 
     /**

@@ -1,12 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import {RotateCcw} from "lucide-react";
 import {useEffect, useState} from "react";
-import {
-    type EditorSettings,
-    mergeSettings,
-    type ProjectOverrides,
-    sparseOverrides,
-} from "../lib/editorSettings";
+import {type EditorSettings, mergeSettings, type ProjectOverrides, sparseOverrides,} from "../lib/editorSettings";
 import {loadProjectSettings, saveProjectSettings,} from "../lib/projectSettings";
 import type {Project} from "../types";
 

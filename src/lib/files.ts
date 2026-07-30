@@ -18,6 +18,10 @@ export function dirname(path: string): string {
     return parts.join("/");
 }
 
+function getSortDirection(a: Awaited<{ name: string; path: string; isDir: boolean }>) {
+    return a.isDir ? -1 : 1;
+}
+
 /**
  * One level only — the browser loads children lazily as folders are expanded.
  *
@@ -34,8 +38,9 @@ export async function listDir(dir: string): Promise<FileNode[]> {
             isDir: e.isDirectory,
         })),
     );
+
     return nodes.sort((a, b) =>
-        a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,
+        a.isDir === b.isDir ? a.name.localeCompare(b.name) : getSortDirection(a),
     );
 }
 

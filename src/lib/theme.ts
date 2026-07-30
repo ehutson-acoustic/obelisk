@@ -21,7 +21,7 @@ export function injectStyle(id: string, css: string): void {
 }
 
 export function systemTheme(): Theme {
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    return globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light";
 }
@@ -50,7 +50,7 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function watchSystemTheme(onChange: () => void): () => void {
-    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const mq = globalThis.matchMedia?.("(prefers-color-scheme: dark)");
     if (!mq) return () => {
     };
     mq.addEventListener("change", onChange);
@@ -63,10 +63,10 @@ export function watchSystemTheme(onChange: () => void): () => void {
  * background rather than sharing one.
  *
  * `palette` overlays the theme's own ground, foreground and cursor so the
- * terminal belongs to the active theme. The sixteen ANSI colours stay keyed to
+ * terminal belongs to the active theme. The sixteen ANSI colors stay keyed to
  * light/dark only: programs assign them meanings (red is an error, green a pass),
  * so re-tinting them per theme would trade a real signal for a cosmetic one —
- * and hand-tuning sixteen colours across twelve palettes would rot immediately.
+ * and hand-tuning sixteen colors across twelve palettes would rot immediately.
  */
 export function xtermTheme(theme: Theme, palette?: Palette) {
     const base = ansiPalette(theme);

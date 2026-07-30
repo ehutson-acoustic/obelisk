@@ -1,12 +1,7 @@
 import {CaseSensitive, ChevronDown, ChevronRight, Regex, WholeWord, X,} from "lucide-react";
 import type {ReactNode} from "react";
 import {useEffect, useRef, useState} from "react";
-import {
-    EMPTY_OUTCOME,
-    type SearchOptions,
-    type SearchOutcome,
-    searchProject,
-} from "../lib/search";
+import {EMPTY_OUTCOME, type SearchOptions, type SearchOutcome, searchProject,} from "../lib/search";
 
 const DEBOUNCE_MS = 250;
 
@@ -50,7 +45,7 @@ export function SearchPanel({root, titleSlot, onOpen}: Readonly<Props>) {
         }
         setBusy(true);
         let cancelled = false;
-        const timer = window.setTimeout(() => {
+        const timer = globalThis.setTimeout(() => {
             searchProject(root, query, options)
                 .then((result) => {
                     if (cancelled) return;
@@ -69,7 +64,7 @@ export function SearchPanel({root, titleSlot, onOpen}: Readonly<Props>) {
         }, DEBOUNCE_MS);
         return () => {
             cancelled = true;
-            window.clearTimeout(timer);
+            globalThis.clearTimeout(timer);
         };
     }, [root, query, options]);
 

@@ -1,55 +1,71 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <defs>
-    <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0.00" stop-color="#ffffff"/>
-      <stop offset="0.15" stop-color="#eceef3"/>
-      <stop offset="0.38" stop-color="#c3c8d3"/>
-      <stop offset="0.50" stop-color="#e3e6ec"/>
-      <stop offset="0.62" stop-color="#bcc1cd"/>
-      <stop offset="0.82" stop-color="#9aa0ad"/>
-      <stop offset="1.00" stop-color="#767d8b"/>
-    </linearGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0.00" stop-color="#ffffff" stop-opacity="0.95"/>
-      <stop offset="0.50" stop-color="#ffffff" stop-opacity="0.18"/>
-      <stop offset="1.00" stop-color="#525966" stop-opacity="0.60"/>
-    </linearGradient>
-    <radialGradient id="vignette" cx="0.32" cy="0.26" r="0.86">
-      <stop offset="0.52" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="1.00" stop-color="#000000" stop-opacity="0.11"/>
-    </radialGradient>
+    <defs>
+        <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0.00" stop-color="#ffffff"/>
+            <stop offset="0.15" stop-color="#eceef3"/>
+            <stop offset="0.38" stop-color="#c3c8d3"/>
+            <stop offset="0.50" stop-color="#e3e6ec"/>
+            <stop offset="0.62" stop-color="#bcc1cd"/>
+            <stop offset="0.82" stop-color="#9aa0ad"/>
+            <stop offset="1.00" stop-color="#767d8b"/>
+        </linearGradient>
+        <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0.00" stop-color="#ffffff" stop-opacity="0.95"/>
+            <stop offset="0.50" stop-color="#ffffff" stop-opacity="0.18"/>
+            <stop offset="1.00" stop-color="#525966" stop-opacity="0.60"/>
+        </linearGradient>
+        <radialGradient id="vignette" cx="0.32" cy="0.26" r="0.86">
+            <stop offset="0.52" stop-color="#000000" stop-opacity="0"/>
+            <stop offset="1.00" stop-color="#000000" stop-opacity="0.11"/>
+        </radialGradient>
 
-    <linearGradient id="stoneL" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5b6472"/>
-      <stop offset="1" stop-color="#3b4250"/>
-    </linearGradient>
-    <linearGradient id="stoneR" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#333a46"/>
-      <stop offset="1" stop-color="#1c2129"/>
-    </linearGradient>
-    <linearGradient id="recess" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0.00" stop-color="#c7ccd6"/>
-      <stop offset="0.45" stop-color="#969ead"/>
-      <stop offset="1.00" stop-color="#6b7280"/>
-    </linearGradient>
+        <linearGradient id="stoneL" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#5b6472"/>
+            <stop offset="1" stop-color="#3b4250"/>
+        </linearGradient>
+        <linearGradient id="stoneR" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#333a46"/>
+            <stop offset="1" stop-color="#1c2129"/>
+        </linearGradient>
+        <linearGradient id="recess" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0.00" stop-color="#c7ccd6"/>
+            <stop offset="0.45" stop-color="#969ead"/>
+            <stop offset="1.00" stop-color="#6b7280"/>
+        </linearGradient>
 
-    <clipPath id="leftHalf"><rect x="0" y="0" width="512" height="1024"/></clipPath>
-    <clipPath id="rightHalf"><rect x="512" y="0" width="512" height="1024"/></clipPath>
-    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="12"/>
-    </filter>
-    <filter id="tight" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="6"/>
-    </filter>
-  </defs>
+        <clipPath id="leftHalf">
+            <rect x="0" y="0" width="512" height="1024"/>
+        </clipPath>
+        <clipPath id="rightHalf">
+            <rect x="512" y="0" width="512" height="1024"/>
+        </clipPath>
+        <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="12"/>
+        </filter>
+        <filter id="tight" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="6"/>
+        </filter>
+    </defs>
 
-  <rect x="80" y="80" width="864" height="864" rx="196" fill="url(#plate)"/>
-  <rect x="80" y="80" width="864" height="864" rx="196" fill="url(#vignette)"/>
-  <rect x="82.5" y="82.5" width="859" height="859" rx="193.5"
-        fill="none" stroke="url(#edge)" stroke-width="5"/>
-  <rect x="80.75" y="80.75" width="862.5" height="862.5" rx="195.25"
-        fill="none" stroke="#4a515e" stroke-opacity="0.30" stroke-width="1.5"/>
-  <g transform="translate(10,14)" fill="#232833" fill-opacity="0.22" filter="url(#soft)"><rect x="477" y="198" width="70" height="634" rx="8"/><rect x="340" y="300" width="344" height="58" rx="8"/><rect x="375" y="672" width="275" height="58" rx="8"/></g>
-  <g clip-path="url(#leftHalf)" fill="url(#stoneL)"><rect x="477" y="198" width="70" height="634" rx="8"/><rect x="340" y="300" width="344" height="58" rx="8"/><rect x="375" y="672" width="275" height="58" rx="8"/></g>
-  <g clip-path="url(#rightHalf)" fill="url(#stoneR)"><rect x="477" y="198" width="70" height="634" rx="8"/><rect x="340" y="300" width="344" height="58" rx="8"/><rect x="375" y="672" width="275" height="58" rx="8"/></g>
+    <rect x="80" y="80" width="864" height="864" rx="196" fill="url(#plate)"/>
+    <rect x="80" y="80" width="864" height="864" rx="196" fill="url(#vignette)"/>
+    <rect x="82.5" y="82.5" width="859" height="859" rx="193.5"
+          fill="none" stroke="url(#edge)" stroke-width="5"/>
+    <rect x="80.75" y="80.75" width="862.5" height="862.5" rx="195.25"
+          fill="none" stroke="#4a515e" stroke-opacity="0.30" stroke-width="1.5"/>
+    <g transform="translate(10,14)" fill="#232833" fill-opacity="0.22" filter="url(#soft)">
+        <rect x="477" y="198" width="70" height="634" rx="8"/>
+        <rect x="340" y="300" width="344" height="58" rx="8"/>
+        <rect x="375" y="672" width="275" height="58" rx="8"/>
+    </g>
+    <g clip-path="url(#leftHalf)" fill="url(#stoneL)">
+        <rect x="477" y="198" width="70" height="634" rx="8"/>
+        <rect x="340" y="300" width="344" height="58" rx="8"/>
+        <rect x="375" y="672" width="275" height="58" rx="8"/>
+    </g>
+    <g clip-path="url(#rightHalf)" fill="url(#stoneR)">
+        <rect x="477" y="198" width="70" height="634" rx="8"/>
+        <rect x="340" y="300" width="344" height="58" rx="8"/>
+        <rect x="375" y="672" width="275" height="58" rx="8"/>
+    </g>
 </svg>

@@ -87,7 +87,7 @@ export const checkpointContent = (project: string, file: string, sha: string) =>
 export const repoState = (project: string) =>
     invoke<RepoState>("repo_state", {project});
 
-/** serde renames nothing, so the one multi-word field arrives snake_cased. */
+/** Serde renames nothing, so the one multi-word field arrives snake_cased. */
 type RawBranches = Omit<Branches, "defaultBranch"> & {
     default_branch: string | null;
 };

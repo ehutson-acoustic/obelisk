@@ -17,7 +17,7 @@ export async function loadSession(): Promise<Session> {
         return {
             ...DEFAULT_SESSION,
             ...parsed,
-            layouts: {...DEFAULT_SESSION.layouts, ...(parsed.layouts ?? {})},
+            layouts: {...DEFAULT_SESSION.layouts, ...parsed.layouts},
         };
     } catch {
         return DEFAULT_SESSION;

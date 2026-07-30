@@ -56,11 +56,11 @@ than writing a migration.
 
 ### Three config layers
 
-| File | Written by | Holds |
-|---|---|---|
-| `session.json` (app config dir) | `lib/session.ts` | window/panel state, open tabs, projects, terminals |
-| `settings.json` (app config dir) | `lib/appSettings.ts` | appearance (app-only) + default `EditorSettings` |
-| `<project>/.obelisk/settings.json` | `lib/projectSettings.ts` | **sparse** project overrides — two scalars only |
+| File                               | Written by               | Holds                                              |
+| ---------------------------------- | ------------------------ | -------------------------------------------------- |
+| `session.json` (app config dir)    | `lib/session.ts`         | window/panel state, open tabs, projects, terminals |
+| `settings.json` (app config dir)   | `lib/appSettings.ts`     | appearance (app-only) + default `EditorSettings`   |
+| `<project>/.obelisk/settings.json` | `lib/projectSettings.ts` | **sparse** project overrides — two scalars only    |
 
 `lib/editorSettings.ts` is the theme and merge engine: `BASE ⊕ theme ⊕ per-component edits` (`resolveComponents`), app
 defaults ⊕ project overrides (`mergeSettings`), and `sparseOverrides` on the way back out. A project can override only
@@ -70,9 +70,7 @@ style keys back to `ProjectOverrides`. Never write a full settings object into a
 ### Editor: two imperative views, remounted not updated
 
 `components/Editor.tsx` mounts either Crepe/Milkdown or CodeMirror 6 imperatively. Both own their own document state, so
-`value` and `cursor` are **initial values only**. The parent forces a fresh mount via `key = \`${path}:${revision}\``;
-`revision` is bumped whenever the file is reloaded from disk. Do not try to push content into a mounted view — bump
-`revision`.
+`value` and `cursor` are **initial values only**. The parent forces a fresh mount via `key = \`${path}:${revision}\``; `revision`is bumped whenever the file is reloaded from disk. Do not try to push content into a mounted view — bump`revision\`.
 
 Cursor positions are tagged with the `EditorMode` that produced them (`OpenFile.cursorMode`), because ProseMirror
 positions and CodeMirror offsets are not interchangeable; restore only when the modes match.
@@ -97,14 +95,18 @@ Four rules exist because this is real, pushable history, and each one has a test
 * Commits are assembled in a **scratch index** (`GIT_INDEX_FILE`), never `git add`, so other paths' staged work survives.
   Afterwards the real index entry for *that path only* is moved to the new blob — `sync_index` explains why leaving it
   stale is not an option (it makes `git status` report a phantom staged reversal).
+
 * Committing is **refused** while HEAD is detached or a rebase/merge/cherry-pick/revert/bisect is in progress.
+
 * **Gitignored files are never committed.**
+
 * Commits use the user's identity and are **never signed** (a passphrase prompt would block an autosave). `commit-tree`
   runs no hooks, deliberately.
 
 Two creation paths, and the difference matters:
 
 * `create` — commits what is on disk.
+
 * `create_from_content` — hashes a blob straight into the object database and builds a commit with `commit-tree`, without
   touching the working tree. This is what makes an incoming external write recoverable: by the time the watcher fires,
   the bytes worth saving exist only in the editor buffer.
@@ -124,8 +126,10 @@ mechanisms, all generated as stylesheet text and injected via `injectStyle()`:
 * Markdown styling → `<style id="md-theme">` from `themeCss()` — not inline styles, since ProseMirror creates and
   destroys nodes as you type. The selectors are written against the DOM Crepe actually produces (code blocks are
   CodeMirror instances, paragraphs carry Crepe's own size) and must out-specify Crepe's rules.
+
 * The palette → `<style id="app-palette">` from `paletteCss()`, as `:root[data-theme="light"|"dark"]` blocks. The
   attribute selector is required to out-specify the bare `:root` defaults in `styles.css`.
+
 * Crepe's light/dark themes are separate stylesheets defining the same variables, so `lib/theme.ts` swaps the `href` of a
   single `<link id="crepe-theme">`. Never statically import a Crepe theme CSS file — that pins one variant.
 

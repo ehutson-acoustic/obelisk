@@ -1,5 +1,5 @@
 /**
- * Themes, markdown styling, and the project-overridable settings (DESIGN §5).
+ * Themes, Markdown styling, and the project-overridable settings (DESIGN §5).
  *
  * A **theme** (§5.3) is the whole look: a light and a dark palette, a typography
  * baseline, and a content measure. It replaced the earlier "preset" concept,
@@ -9,6 +9,8 @@
  *
  * Theme and light/dark/system are independent: every theme defines both modes.
  */
+
+import {readableFg} from "./contrast";
 
 export const COMPONENTS = [
     "body",
@@ -42,6 +44,7 @@ export type ComponentStyle = {
     fontSize?: string;
     fontWeight?: string;
     color?: string;
+    backgroundColor?: string;
     lineHeight?: string;
 };
 
@@ -123,6 +126,10 @@ export const BASE: Record<ComponentKey, ComponentStyle> = {
         fontSize: "0.9em",
         fontWeight: "400",
         color: "var(--fg)",
+        // Crepe's stock inline-code background is a flat, saturated fill that
+        // fights every one of these palettes. The sunken surface is the theme's
+        // own answer to "slightly recessed", so it recolours per theme for free.
+        backgroundColor: "var(--bg-sunken)",
         lineHeight: "inherit",
     },
     codeBlock: {
@@ -523,6 +530,7 @@ const CSS_PROPS: Record<keyof ComponentStyle, string> = {
     fontSize: "font-size",
     fontWeight: "font-weight",
     color: "color",
+    backgroundColor: "background-color",
     lineHeight: "line-height",
 };
 
@@ -609,7 +617,11 @@ export function paletteCss(settings: EditorSettings): string {
         const vars = (Object.keys(PALETTE_VARS) as (keyof Palette)[])
             .map((key) => `  ${PALETTE_VARS[key]}: ${palette[key]};`)
             .join("\n");
-        return `:root[data-theme="${mode}"] {\n${vars}\n  color-scheme: ${mode};\n}`;
+        // Anything sitting *on* the accent — the primary button's label — needs a
+        // foreground picked from the accent's luminance. Dark themes carry light
+        // accents, so a hardcoded white is unreadable in half the roster.
+        const accentFg = `  --accent-fg: ${readableFg(palette.accent)};`;
+        return `:root[data-theme="${mode}"] {\n${vars}\n${accentFg}\n  color-scheme: ${mode};\n}`;
     };
     return [block("light"), block("dark")].join("\n\n");
 }

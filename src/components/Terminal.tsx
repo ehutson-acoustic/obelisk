@@ -88,7 +88,7 @@ export function TerminalView({
         const sendStartup = () => {
             if (startupSent || !startupCommand?.trim()) return;
             startupSent = true;
-            startupTimer = window.setTimeout(
+            startupTimer = globalThis.setTimeout(
                 () => pty.write(`${startupCommand}\n`),
                 120,
             );
@@ -109,7 +109,7 @@ export function TerminalView({
 
         return () => {
             observer.disconnect();
-            if (startupTimer) window.clearTimeout(startupTimer);
+            if (startupTimer) globalThis.clearTimeout(startupTimer);
             for (const sub of subs) sub.dispose();
             try {
                 pty.kill();
@@ -131,7 +131,7 @@ export function TerminalView({
     // Re-fit when this tab is revealed; it couldn't measure while hidden.
     useEffect(() => {
         if (!active) return;
-        const id = window.setTimeout(() => {
+        const id = globalThis.setTimeout(() => {
             const el = host.current;
             if (!el || el.clientHeight < 20) return;
             try {
@@ -140,7 +140,7 @@ export function TerminalView({
                 /* transient layout state */
             }
         }, 0);
-        return () => window.clearTimeout(id);
+        return () => globalThis.clearTimeout(id);
     }, [active]);
 
     return (

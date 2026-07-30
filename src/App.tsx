@@ -17,7 +17,7 @@ import type {RefObject} from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Group, type Layout, Panel, type PanelImperativeHandle, Separator, usePanelRef,} from "react-resizable-panels";
 import {BrandMark} from "./components/BrandMark";
-import {type BranchTarget, BranchMenu} from "./components/BranchMenu";
+import {BranchMenu, type BranchTarget} from "./components/BranchMenu";
 import {CheckpointDialog} from "./components/CheckpointDialog";
 import {Editor} from "./components/Editor";
 import {FileBrowser} from "./components/FileBrowser";
@@ -149,8 +149,8 @@ export default function App() {
 
     useEffect(() => {
         if (!ready) return;
-        const t = window.setTimeout(() => saveSession(session), 300);
-        return () => window.clearTimeout(t);
+        const t = globalThis.setTimeout(() => saveSession(session), 300);
+        return () => globalThis.clearTimeout(t);
     }, [session, ready]);
 
     // Apply persisted collapse states once the panels exist.
@@ -172,7 +172,7 @@ export default function App() {
      * — React state would re-render the tree on every pointer move.
      */
     const syncLeftWidth = useCallback(() => {
-        window.setTimeout(() => {
+        globalThis.setTimeout(() => {
             const el = sidebarEl.current;
             if (!el) return;
             document.documentElement.style.setProperty(
@@ -248,7 +248,7 @@ export default function App() {
 
     // The theme's palette overrides the `:root` variables styles.css declares
     // (DESIGN §5.3). Separate from md-theme so a theme switch does not rewrite
-    // the markdown sheet, and vice versa.
+    // the Markdown sheet, and vice versa.
     useEffect(() => {
         injectStyle("app-palette", paletteCss(editorSettings));
     }, [editorSettings]);
@@ -452,8 +452,8 @@ export default function App() {
         setContent(text);
         if (readOnly || !activePath) return;
         setDirty(true);
-        if (saveTimer.current) window.clearTimeout(saveTimer.current);
-        saveTimer.current = window.setTimeout(
+        if (saveTimer.current) globalThis.clearTimeout(saveTimer.current);
+        saveTimer.current = globalThis.setTimeout(
             () => flushSave(text, activePath),
             AUTOSAVE_MS,
         );
@@ -461,8 +461,8 @@ export default function App() {
 
     // Debounced so cursor movement doesn't re-render the tree on every keystroke.
     const onCursorChange = useCallback((pos: number) => {
-        if (cursorTimer.current) window.clearTimeout(cursorTimer.current);
-        cursorTimer.current = window.setTimeout(() => {
+        if (cursorTimer.current) globalThis.clearTimeout(cursorTimer.current);
+        cursorTimer.current = globalThis.setTimeout(() => {
             setSession((s) => ({
                 ...s,
                 openFiles: s.openFiles.map((f) =>
@@ -480,13 +480,13 @@ export default function App() {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
                 e.preventDefault();
                 if (activePath && !readOnly) {
-                    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+                    if (saveTimer.current) globalThis.clearTimeout(saveTimer.current);
                     flushSave(content, activePath);
                 }
             }
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        globalThis.addEventListener("keydown", onKey);
+        return () => globalThis.removeEventListener("keydown", onKey);
     }, [activePath, content, readOnly, flushSave]);
 
     // ---- zoom ----------------------------------------------------------------
@@ -522,8 +522,8 @@ export default function App() {
                 zoomBy(0);
             }
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        globalThis.addEventListener("keydown", onKey);
+        return () => globalThis.removeEventListener("keydown", onKey);
     }, [zoomBy]);
 
     // ---- find ----------------------------------------------------------------
@@ -555,8 +555,8 @@ export default function App() {
                 setFindReplace(true);
             }
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        globalThis.addEventListener("keydown", onKey);
+        return () => globalThis.removeEventListener("keydown", onKey);
     }, [rightPanel]);
 
     // ---- checkpoints ---------------------------------------------------------
@@ -661,7 +661,7 @@ export default function App() {
             setCkptBusy(true);
             try {
                 // Flush any pending autosave so the commit matches what's on screen.
-                if (saveTimer.current) window.clearTimeout(saveTimer.current);
+                if (saveTimer.current) globalThis.clearTimeout(saveTimer.current);
                 await flushSave(contentRef.current, activePath);
                 const short = await createCheckpoint(
                     activeProject.dir,
@@ -715,7 +715,7 @@ export default function App() {
     // Periodic checkpoint while dirty.
     useEffect(() => {
         if (!activeProject || !activePath || !gitOk) return;
-        const id = window.setInterval(
+        const id = globalThis.setInterval(
             async () => {
                 if (!dirtyRef.current) return;
                 try {
@@ -731,7 +731,7 @@ export default function App() {
             },
             Math.max(1, editorSettings.checkpointIntervalMinutes) * 60_000,
         );
-        return () => window.clearInterval(id);
+        return () => globalThis.clearInterval(id);
     }, [
         activeProject,
         activePath,
@@ -750,7 +750,7 @@ export default function App() {
     const secureActiveBuffer = useCallback(
         async (reason: string) => {
             if (!activeProject || !activePath || !gitOk || !dirtyRef.current) return;
-            if (saveTimer.current) window.clearTimeout(saveTimer.current);
+            if (saveTimer.current) globalThis.clearTimeout(saveTimer.current);
             await flushSave(contentRef.current, activePath);
             await checkpointFromContent(
                 activeProject.dir,
@@ -925,8 +925,8 @@ export default function App() {
 
     useEffect(() => {
         if (!status) return;
-        const t = window.setTimeout(() => setStatus(null), 3000);
-        return () => window.clearTimeout(t);
+        const t = globalThis.setTimeout(() => setStatus(null), 3000);
+        return () => globalThis.clearTimeout(t);
     }, [status]);
 
     /**
@@ -1018,8 +1018,7 @@ export default function App() {
                                             <span className="menu-item-name">
                                                 {basename(f.path)}
                                             </span>
-                                            {/* Two files can share a name, so the folder
-                          disambiguates them. */}
+                                            {/* Two files can share a name, so the folder disambiguates them. */}
                                             <span className="menu-item-dir">
                                                 {dirname(f.path)}
                                             </span>

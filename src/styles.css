@@ -254,7 +254,21 @@ button:focus-visible {
 .btn.primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    /* Derived per theme rather than hardcoded white: dark themes carry *light*
+       accents (Paper's tan, Focus's grey), against which white is unreadable. */
+    color: var(--accent-fg, #fff);
+}
+
+/* `.btn:hover:not(:disabled)` counts three class-level selectors to
+   `.btn.primary`'s two, so without this it won the background and left the
+   button's own foreground stranded on a near-white ground. */
+.btn.primary:hover:not(:disabled) {
+    background: var(--accent);
+    opacity: 0.85;
+}
+
+.btn.primary:active:not(:disabled) {
+    opacity: 0.75;
 }
 
 .icon-btn {

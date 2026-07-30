@@ -51,7 +51,7 @@ export function CheckpointDialog({
                         )}
                     </div>
 
-                    {/* The staged version is superseded rather than kept, so say so
+                    {/* The staged version is superseded rather than kept, so, say so
                         before the commit rather than after (DESIGN §3.2). */}
                     {staged && (
                         <p className="dialog-warn">

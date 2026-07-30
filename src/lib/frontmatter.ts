@@ -1,4 +1,5 @@
-import {$nodeSchema, $remark} from "@milkdown/kit/utils";
+import {Plugin} from "@milkdown/kit/prose/state";
+import {$nodeSchema, $prose, $remark} from "@milkdown/kit/utils";
 import remarkFrontmatter from "remark-frontmatter";
 
 /**
@@ -50,3 +51,33 @@ export const frontmatterSchema = $nodeSchema("frontmatter", () => ({
         },
     },
 }));
+
+/**
+ * Owns the disclosure toggle instead of relying on the browser's.
+ *
+ * A native `<details>` does not open from a summary click inside a
+ * `contenteditable` region in WebKit — which is every macOS build, since Tauri
+ * renders in WKWebView — so the box stayed shut no matter where you clicked.
+ * Cancelling the click also cancels any native toggle, so this fires exactly
+ * once whether or not the browser would have handled it (DESIGN §2.5).
+ */
+export const frontmatterToggle = $prose(
+    () =>
+        new Plugin({
+            props: {
+                handleDOMEvents: {
+                    click: (_view, event) => {
+                        const target = event.target as HTMLElement | null;
+                        const summary = target?.closest?.(
+                            "details.frontmatter > summary",
+                        );
+                        const details = summary?.parentElement;
+                        if (!(details instanceof HTMLDetailsElement)) return false;
+                        event.preventDefault();
+                        details.open = !details.open;
+                        return true;
+                    },
+                },
+            },
+        }),
+);

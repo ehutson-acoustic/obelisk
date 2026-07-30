@@ -1,21 +1,6 @@
-import {
-    CaseSensitive,
-    ChevronDown,
-    ChevronUp,
-    Regex,
-    Replace,
-    ReplaceAll,
-    WholeWord,
-    X,
-} from "lucide-react";
+import {CaseSensitive, ChevronDown, ChevronUp, Regex, Replace, ReplaceAll, WholeWord, X,} from "lucide-react";
 import {useEffect, useRef, useState} from "react";
-import {
-    EMPTY_FIND_QUERY,
-    type FindApi,
-    type FindQuery,
-    type MatchCount,
-    NO_MATCHES,
-} from "../lib/find";
+import {EMPTY_FIND_QUERY, type FindApi, type FindQuery, type MatchCount, NO_MATCHES,} from "../lib/find";
 
 type Props = {
     /** Null while no view is mounted; the bar disables itself rather than vanish. */
@@ -75,11 +60,15 @@ export function FindBar({
     const toggle = (key: "caseSensitive" | "wholeWord" | "regexp") => () =>
         setQuery((q) => ({...q, [key]: !q[key]}));
 
-    const status = error
-        ? "bad pattern"
-        : query.search
+    function getSearchCount() {
+        return query.search
             ? `${count.current}/${count.total}`
             : "";
+    }
+
+    const status = error
+        ? "bad pattern"
+        : getSearchCount();
 
     return (
         <div className="find-bar">

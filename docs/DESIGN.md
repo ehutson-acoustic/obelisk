@@ -110,6 +110,11 @@ Without this, remark parses a leading `---` block as a thematic break followed b
 serialized document straight back to disk, that mangling would be persisted — silent corruption of any file with
 frontmatter, which is the worst failure mode available in this app. Round-trips byte-identically.
 
+The bar is a `<details>`, but the **disclosure toggle is ours, not the browser's**. WebKit does not open a `<details>`
+from a summary click inside a `contenteditable` region, so in WKWebView — every macOS build — the box simply never
+opened. A ProseMirror plugin cancels the click and sets `open` itself, which also guarantees exactly one toggle rather
+than racing a native one that may or may not fire.
+
 ***
 
 ## 3. Checkpoints
@@ -317,12 +322,18 @@ accents, checked against `bg`, `bgSunken` and `bgRaised`. Hand-picked colour dat
 unnoticed, and a theme that fails these is unusable rather than merely ugly. The check found one real failure on the
 original palette, whose muted grey measured 4.43:1 against the sunken surface; it was darkened one step.
 
+Anything drawn *on* the accent — the primary button's label — takes `--accent-fg`, derived from the accent's luminance by
+the same `readableFg` the project cards use. A hardcoded white was unreadable in every dark theme, since those carry
+*light* accents (Paper's tan, Focus's grey). A test asserts 4.5:1 against all twelve accents.
+
 The terminal takes its ground, foreground and cursor from the active theme, but the **sixteen ANSI colours stay keyed to
 light/dark only**. Programs assign those meanings — red is an error, green a pass — so re-tinting them per theme would
 trade a real signal for a cosmetic one.
 
 Per-component editing sits on top of the theme, over a **fixed component list** — body, h1–h3, links, inline code, code
-blocks, blockquote, lists — each exposing font family, size, weight, color, and line-height. Edits are stored as
+blocks, blockquote, lists — each exposing font family, size, weight, colour, background, and line-height. Background
+carries an explicit **None**, since a colour input has no way to express "unset" and defaulting the swatch to black would
+read as a real and very wrong choice. Edits are stored as
 overrides rather than forking the theme, so switching themes keeps them and resetting a component returns it to the
 theme's own value.
 

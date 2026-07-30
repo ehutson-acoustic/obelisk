@@ -31,7 +31,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
         return {
             ...DEFAULT_APP_SETTINGS,
             ...parsed,
-            editor: {...DEFAULT_EDITOR_SETTINGS, ...(parsed.editor ?? {})},
+            editor: {...DEFAULT_EDITOR_SETTINGS, ...parsed.editor},
         };
     } catch {
         return DEFAULT_APP_SETTINGS;

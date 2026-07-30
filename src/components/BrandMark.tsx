@@ -7,7 +7,7 @@
  * plate (the icon file pads it out to 1024 for the OS), and the two-tone faces
  * and shadows of the full icon are dropped -- below ~32px they only muddy it.
  */
-export function BrandMark({size = 22}: {size?: number}) {
+export function BrandMark({size = 22}: Readonly<{ size?: number }>) {
     return (
         <svg
             width={size}
