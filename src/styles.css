@@ -1116,6 +1116,45 @@ button:focus-visible {
     display: none !important;
 }
 
+/* ---- selection toolbar ------------------------------------------------- */
+
+/* Crepe styles this from its own palette, which knows nothing about the six
+   themes: in light mode its surface is the same near-white as the editor
+   beneath it, leaving a faint shadow to do all the work of separating them.
+   Restyled against the app's own variables so it reads as a floating surface
+   and follows whichever theme is active.
+
+   These match Crepe's selectors exactly rather than out-specifying them —
+   styles.css is bundled after Crepe's stylesheet, so equal specificity wins. */
+.milkdown .milkdown-toolbar {
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.milkdown .milkdown-toolbar .divider {
+    background: var(--border);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item svg {
+    color: var(--fg-muted);
+    fill: var(--fg-muted);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:hover {
+    background: var(--bg-sunken);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:hover svg {
+    color: var(--fg);
+    fill: var(--fg);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item.active svg {
+    color: var(--accent);
+    fill: var(--accent);
+}
+
 .conflict-banner {
     display: flex;
     align-items: center;
