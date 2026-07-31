@@ -1,0 +1,411 @@
+/* The shared vocabulary: the classes more than one component spells out.
+ *
+ * These are not colocatable — `.btn` appears in fourteen of the nineteen
+ * components, `.field` in eleven — so they live here rather than in any one
+ * component's sheet. A rule belongs in this file once a second component uses
+ * it; until then it belongs with its component. */
+
+/* ---- buttons ----------------------------------------------------------- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg);
+    font-size: 13px;
+}
+
+.btn:hover:not(:disabled) {
+    background: var(--bg-sunken);
+}
+
+.btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    /* Derived per theme rather than hardcoded white: dark themes carry *light*
+       accents (Paper's tan, Focus's grey), against which white is unreadable. */
+    color: var(--accent-fg, #fff);
+}
+
+/* `.btn:hover:not(:disabled)` counts three class-level selectors to
+   `.btn.primary`'s two, so without this it won the background and left the
+   button's own foreground stranded on a near-white ground. */
+.btn.primary:hover:not(:disabled) {
+    background: var(--accent);
+    opacity: 0.85;
+}
+
+.btn.primary:active:not(:disabled) {
+    opacity: 0.75;
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 24px;
+    border-radius: 6px;
+    color: var(--fg-muted);
+}
+
+.icon-btn:hover:not(:disabled) {
+    background: var(--bg-sunken);
+    color: var(--fg);
+}
+
+/* A latched icon button — the find bar's regex/case toggles. Hover still wins
+   over it on specificity, which is the intent: the pressed state should not
+   swallow the hover feedback. */
+.icon-btn.on {
+    background: var(--bg-sunken);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* ---- fields and badges ------------------------------------------------- */
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--fg-muted);
+}
+
+.field-row {
+    display: flex;
+    gap: 6px;
+}
+
+.field-row .btn {
+    flex: none;
+}
+
+.field-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.badge,
+.inherit-tag {
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--bg-sunken);
+    color: var(--fg-muted);
+    border: 1px solid var(--border);
+}
+
+.inherit-tag.overridden {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent);
+    border-color: var(--accent);
+    cursor: pointer;
+}
+
+/* ---- resize handles ---------------------------------------------------- */
+
+.handle {
+    background: var(--border);
+    transition: background 120ms;
+}
+
+.handle.vertical {
+    width: 1px;
+}
+
+.handle.horizontal {
+    height: 1px;
+}
+
+.handle.vertical:hover,
+.handle.horizontal:hover,
+.handle[data-resize-handle-state="drag"] {
+    background: var(--accent);
+}
+
+/* Only this thin strip drags. The tab bar sits below it inside the panel, so
+   its buttons stay clickable, and the panel's collapsed size equals the bar
+   height so the bar survives collapsing. */
+.handle.terminal-grip {
+    height: 5px;
+    background: var(--bg-raised);
+    border-top: 1px solid var(--border);
+    cursor: row-resize;
+}
+
+.handle.terminal-grip:hover,
+.handle.terminal-grip[data-separator-state="drag"] {
+    background: var(--accent);
+}
+
+/* ---- right sidebar panels ---------------------------------------------- */
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-raised);
+    border-left: 1px solid var(--border);
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 28px;
+    padding: 0 4px 0 10px;
+    border-bottom: 1px solid var(--border);
+    flex: none;
+}
+
+.panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.panel-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 4px 0;
+}
+
+.panel-empty,
+.panel-error {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--fg-muted);
+}
+
+.panel-error {
+    color: var(--danger);
+}
+
+.panel-note {
+    font-size: 11px;
+    color: var(--fg-muted);
+    padding-right: 8px;
+}
+
+.panel-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding-right: 6px;
+    font-size: 11px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.panel-toggle input {
+    width: auto;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+/* ---- tab row (inside dialogs) ------------------------------------------ */
+
+.tab-row {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.tab-row button {
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--fg-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.tab-row button.active {
+    color: var(--fg);
+    border-bottom-color: var(--accent);
+}
+
+/* ---- radix overlays ---------------------------------------------------- */
+
+/* Portalled layers land at the end of <body> with no z-index of their own, so
+   the editor's sticky mode toggle (z-index 5) painted over them. Anything
+   floating above the page belongs on this scale. */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgb(0 0 0 / 35%);
+}
+
+.dialog {
+    position: fixed;
+    z-index: 101;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(440px, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 12px;
+    background: var(--bg);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
+}
+
+.dialog.small {
+    width: min(360px, 92vw);
+}
+
+/* Fixed height, not max-height, so the dialog doesn't resize as you switch
+   between tabs with different amounts of content. */
+.dialog.wide {
+    width: min(680px, 94vw);
+    height: min(660px, 88vh);
+    overflow-y: auto;
+}
+
+.dialog-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.dialog-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.dialog-hint {
+    font-size: 12px;
+    color: var(--fg-muted);
+    word-break: break-all;
+}
+
+.dialog-warn {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--banner-border);
+    background: var(--banner-bg);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.dialog-text code,
+.dialog-hint code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--bg-sunken);
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.popover {
+    z-index: 102;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+/* Above .dialog, so a menu opened from inside one still lands on top. */
+.menu {
+    z-index: 102;
+    min-width: 180px;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.menu-item {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+}
+
+.menu-item[data-highlighted] {
+    background: var(--bg-sunken);
+}
+
+.menu-item[data-disabled] {
+    color: var(--fg-muted);
+    opacity: 0.5;
+    cursor: default;
+}
+
+.menu-item.danger {
+    color: var(--danger);
+}
+
+/* Open-files menu: reaches every tab, including the ones scrolled out of the
+   strip. Scrolls itself once there are more files than fit on screen. */
+.file-menu {
+    max-width: 340px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.menu-item.file {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.menu-item.file.active {
+    color: var(--accent);
+}
+
+.menu-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ellipsis on the left so the containing folder stays visible (DESIGN §6). */
+.menu-item-dir {
+    font-size: 11px;
+    color: var(--fg-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+}
+
+.menu-sep {
+    height: 1px;
+    margin: 4px 2px;
+    background: var(--border);
+}

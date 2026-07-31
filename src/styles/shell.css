@@ -1,0 +1,129 @@
+/* The window chrome: the header and its file tabs, the column the editor and
+   terminal stack in, and the footer. Rendered by App, FileTabs and StatusBar. */
+
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.main {
+    flex: 1;
+    min-height: 0;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 8px 0 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+    position: relative;
+}
+
+/* Starts past the left sidebar (plus its 1px separator) so the first tab lines
+   up with the editor. A margin, not padding, so the strip never scrolls out
+   over the sidebar. */
+.tabs {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    margin-left: calc(var(--left-w) + 1px);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px 4px 10px;
+    border-radius: 6px 6px 0 0;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--fg-muted);
+}
+
+.tab.active {
+    background: var(--bg);
+    color: var(--fg);
+    box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.tab-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+/* Also worn by the terminal tabs, which dim it — see `.term-tab .tab-close` in
+   panels.css, which loads after this file. */
+.tab-close {
+    display: flex;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.tab-close:hover {
+    background: var(--bg-sunken);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Editor, terminal and footer stack between the two full-height sidebars. */
+.center-col {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 0;
+}
+
+.center-group {
+    flex: 1;
+    min-height: 0;
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    height: 26px;
+    padding: 0 8px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-raised);
+    font-size: 12px;
+    color: var(--fg-muted);
+}
+
+/* Ellipsis on the left so the filename stays visible (DESIGN §6). */
+.footer-path {
+    flex: 1;
+    min-width: 0;
+    direction: rtl;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.footer-badge,
+.footer-status {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-sunken);
+}

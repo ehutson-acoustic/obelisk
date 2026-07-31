@@ -1,7 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import "./styles.css";
+/* Below the `App` import, not above it: Vite emits CSS in module-graph order,
+   and styles/vendor.css has to land after the Crepe and xterm stylesheets that
+   arrive through App -> Editor / Terminal. See styles/index.css. */
+import "./styles/index.css";
 
 /** Without this a render error leaves a blank window and no way to see why. */
 class ErrorBoundary extends React.Component<

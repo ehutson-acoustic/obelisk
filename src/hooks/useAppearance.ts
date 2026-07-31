@@ -79,9 +79,9 @@ export function useAppearance(activeProject: Project | null, zoom: number) {
         injectStyle("md-theme", themeCss(editorSettings));
     }, [editorSettings]);
 
-    // The theme's palette overrides the `:root` variables styles.css declares
-    // (DESIGN §5.3). Separate from md-theme so a theme switch does not rewrite
-    // the Markdown sheet, and vice versa.
+    // The theme's palette overrides the `:root` variables `styles/base.css`
+    // declares (DESIGN §5.3). Separate from md-theme so a theme switch does not
+    // rewrite the Markdown sheet, and vice versa.
     useEffect(() => {
         injectStyle("app-palette", paletteCss(editorSettings));
     }, [editorSettings]);

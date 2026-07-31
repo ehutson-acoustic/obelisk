@@ -1,0 +1,99 @@
+/* Palette variables, the reset, and bare-element defaults.
+ *
+ * Must be the first sheet in `index.css`: everything else in `styles/` styles
+ * classes that sit on these elements, and `paletteCss()` (lib/editorSettings.ts)
+ * injects its own `:root[data-theme=...]` blocks at runtime that have to
+ * out-specify the light defaults here. */
+
+:root {
+    --bg: #ffffff;
+    --bg-sunken: #f4f5f7;
+    --bg-raised: #fafbfc;
+    --border: #e1e4e8;
+    --border-strong: #cdd2d8;
+    --fg: #1f2328;
+    --fg-muted: #6b7280;
+    --accent: #2f6f4e;
+    --danger: #b42318;
+    --term-bg: #ffffff;
+    --banner-bg: #fff8e1;
+    --banner-border: #f0d68a;
+    /* Width of the left sidebar, written from App so header tabs can line up
+       with the editor. */
+    --left-w: 0px;
+
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    color: var(--fg);
+    background: var(--bg);
+}
+
+:root[data-theme="dark"] {
+    --bg: #16181d;
+    --bg-sunken: #1b1e24;
+    --bg-raised: #1f232a;
+    --border: #2b3038;
+    --border-strong: #3a414b;
+    --fg: #e4e6eb;
+    --fg-muted: #9aa1ad;
+    --accent: #5fb98a;
+    --danger: #f2807a;
+    --term-bg: #1e2128;
+    --banner-bg: #3a3320;
+    --banner-border: #6b5a24;
+
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+input {
+    font: inherit;
+    color: inherit;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 6px 8px;
+    width: 100%;
+}
+
+input:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.crash {
+    padding: 24px;
+    overflow: auto;
+    height: 100%;
+}
+
+.crash pre {
+    white-space: pre-wrap;
+    font-size: 12px;
+    color: var(--danger);
+}

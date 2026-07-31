@@ -1,0 +1,31 @@
+/* The app's stylesheet, in layers. This file is the only place the order is
+ * written down, and the order is load-bearing in both directions:
+ *
+ *  - Downwards, within our own rules: `base` establishes the palette and the
+ *    bare-element defaults every later rule sits on, `primitives` defines the
+ *    classes several components share, and the component sheets after it are
+ *    free to out-specify those. `vendor` is last because most of it matches a
+ *    library's own selector *exactly* and wins on document order alone.
+ *
+ *  - Upwards, against the libraries: everything here has to land after Crepe's
+ *    and xterm's stylesheets, which arrive through `App` -> `Editor` /
+ *    `Terminal`. That is why main.tsx imports `App` on the line *above* this
+ *    file — Vite emits CSS in module-graph order, so swapping those two lines
+ *    silently sends the vendor overrides to the wrong side of Crepe's sheet.
+ *    Nothing in `pnpm check` catches that; it shows up as a mystery visual bug.
+ *
+ * Vite inlines these @imports into one sheet at this file's position in the
+ * graph, so the position above is inherited by all six.
+ *
+ * Two more sheets are generated at runtime and injected into <head> by
+ * `injectStyle()` (lib/theme.ts), landing after everything here: `md-theme`
+ * (the markdown styling, from `themeCss()`) and `app-palette` (the active
+ * palette, from `paletteCss()`). See DESIGN §5.3. */
+
+@import "./base.css";
+@import "./primitives.css";
+@import "./shell.css";
+@import "./panels.css";
+@import "./editor.css";
+@import "./settings.css";
+@import "./vendor.css";
