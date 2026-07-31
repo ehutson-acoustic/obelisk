@@ -216,3 +216,8 @@ Comments here explain rationale, not mechanics — they record the failure mode 
 `DESIGN §x`. Match that: if a line exists because of a non-obvious platform or library behavior, say which.
 
 Copyright years use 2026.
+
+**Work directly on `main` in this repo — do not create a git worktree unless asked for one.** This overrides the
+global "always work in a worktree" preference. Obelisk is a single-developer project and the editor under development
+is normally open on this checkout, so a worktree splits the app you are testing from the code you are changing and
+costs a full `pnpm install` plus a Rust rebuild each time.
