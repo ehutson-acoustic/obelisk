@@ -138,6 +138,48 @@ Two further things follow from the box being editable rich-text content it never
 `frontmatter.test.ts` covers the toggle and the selection predicate directly, because these failures were invisible to
 type-checking and to the round-trip tests.
 
+### 2.6 Mermaid diagrams
+
+A ```` ```mermaid ```` fence draws as a diagram in WYSIWYG. It stays an ordinary code block in the document — no new
+node, no schema change — so it round-trips as the literal fence it was typed as, and source mode shows the text as
+written. This is deliberately the opposite trade from frontmatter (§2.5): frontmatter needed its own node because remark
+mangled it, and a fenced code block is already parsed correctly.
+
+The rendering hook is Crepe's own. Its code-block component carries a preview panel and a `renderPreview` config for
+every language; `lib/mermaid.ts` supplies a renderer for one of them. Mermaid is loaded on first use — it is around a
+megabyte with its layout engines, and most documents contain no diagrams.
+
+Four things do not fall out of that for free:
+
+* **Diagrams are drawn from the palette, not from mermaid's themes.** Mermaid's own `default` and `dark` carry a fixed
+  lavender that would fight eleven of the twelve themes, so the `base` theme is used with the active palette
+  substituted in. Only the root variables are set; mermaid derives the rest. Node outlines and edges take `fgMuted`
+  rather than either border colour — the chrome borders are around 1.5:1, which is right for a panel edge and
+  unreadable for the line that *is* the content. `mermaid.test.ts` holds the pairings to the same floors as the
+  palettes themselves, across all twelve in both modes.
+
+* **A theme switch redraws them.** Mermaid resolves colours while it lays a diagram out and writes them into the SVG,
+  so the stylesheet swap that restyles everything else (§5.3) cannot reach a diagram. Drawn diagrams are found in the
+  DOM and laid out again, because Crepe hands out a fresh apply-callback per render with nothing to correlate it to a
+  block. The handle is the diagram's own source, stashed on the element — **base64**, because DOMPurify drops any
+  attribute value containing `-->` as an mXSS defence, and that is the arrow in almost every flowchart ever written.
+
+* **Zoom is CSS, not a re-render** (§7). Feeding mermaid a scaled font size would mean relaying out every diagram on
+  every zoom step.
+
+* **The source is pinned open while the caret is in it.** Crepe decides preview-only mode once, when a block mounts,
+  but whether a block *has* a preview changes later: open a fresh fence and the first line that parses turns one on,
+  hiding the CodeMirror being typed into and blurring it mid-keystroke. A `:focus-within` rule cannot fix this — it
+  stops matching at the same instant it would need to hold — so a class is set on focusin and cleared only once focus
+  has genuinely left the block.
+
+Renders are serialised. `mermaid.initialize` writes module-global config that `render` reads back across its own
+awaits, so two in flight at once can each finish under the other's theme; the queue is bounded, and drops its oldest
+pending work rather than starting a layout per keystroke.
+
+A diagram that will not parse shows its parse error. With the preview open by default, a blank panel reads as the app
+having failed rather than the diagram.
+
 ***
 
 ## 3. Checkpoints
@@ -449,6 +491,10 @@ coordinate drift in CodeMirror — clicks landing a character off in source mode
 CodeMirror caches character metrics and cannot observe a CSS-driven font change, so `Source` calls `requestMeasure()`
 whenever the zoom changes. Without that the cursor stays calibrated to the old size.
 
+Mermaid diagrams (§2.6) are the one place CSS `zoom` *is* used. The objection above is about a caret landing in the
+wrong place; a drawn diagram has no caret, and its geometry is fixed inside the SVG, so the alternative would be
+relaying out every diagram on every zoom step.
+
 ***
 
 ## 8. Find
@@ -536,6 +582,9 @@ Verified dev environment: Ubuntu 24.04, webkit2gtk 4.1, Node 22.17, pnpm 10.29, 
 * **Rust integration tests** over throwaway repos, exercising checkpoint → edit → restore → verify-content.
 
 * **Unit tests** for settings merge, the diff-heuristic title generator, and relative-time formatting.
+
+* **Contrast floors** asserted over every palette, for both prose (§5.3) and the colours handed to mermaid (§2.6). A
+  palette that fails one is wrong; the floor does not move.
 
 * **UI** verified by hand.
 

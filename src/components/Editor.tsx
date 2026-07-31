@@ -35,6 +35,12 @@ import {
     frontmatterToolbarGuard,
     frontmatterView,
 } from "../lib/frontmatter";
+import {
+    type DiagramStyle,
+    diagramPreview,
+    pinSourceWhileEditing,
+    retintDiagrams,
+} from "../lib/mermaid";
 import type {Theme} from "../lib/theme";
 import {buildToolbar} from "../lib/toolbar";
 import type {EditorMode} from "../types";
@@ -48,6 +54,8 @@ type ViewProps = {
     readOnly?: boolean;
     cursor?: number;
     theme: Theme;
+    /** Colours and type for mermaid diagrams; WYSIWYG only (DESIGN §2.6). */
+    diagramStyle: DiagramStyle;
     /** Only used to nudge CodeMirror into re-measuring; see `Source`. */
     zoom: number;
     onChange: (value: string) => void;
@@ -129,6 +137,7 @@ function Wysiwyg({
                      value,
                      readOnly,
                      cursor,
+                     diagramStyle,
                      onChange,
                      onCursorChange,
                      onFindApi,
@@ -137,9 +146,21 @@ function Wysiwyg({
     const onChangeRef = useRef(onChange);
     const onCursorRef = useRef(onCursorChange);
     const onFindApiRef = useRef(onFindApi);
+    // Crepe is configured once at mount, but a diagram can be drawn at any point
+    // after that, so the hook reads the style through a ref rather than closing
+    // over whatever was current when the editor was built.
+    const diagramStyleRef = useRef(diagramStyle);
     onChangeRef.current = onChange;
     onCursorRef.current = onCursorChange;
     onFindApiRef.current = onFindApi;
+    diagramStyleRef.current = diagramStyle;
+
+    // Mermaid resolves colours during layout and writes them into the SVG, so a
+    // theme switch has to redraw every diagram on screen — the stylesheet swap
+    // that restyles the rest of the editor cannot reach them (DESIGN §2.6).
+    useEffect(() => {
+        retintDiagrams(diagramStyle);
+    }, [diagramStyle]);
 
     useEffect(() => {
         if (!host.current) return;
@@ -157,6 +178,15 @@ function Wysiwyg({
             },
             featureConfigs: {
                 [Crepe.Feature.Toolbar]: {buildToolbar},
+                // Crepe's code block already carries a preview panel and a
+                // toggle for it; mermaid support is that hook plus a renderer
+                // (DESIGN §2.6). Preview-first, because a diagram someone has
+                // to click to see is not much better than no diagram.
+                [Crepe.Feature.CodeMirror]: {
+                    renderPreview: diagramPreview(() => diagramStyleRef.current),
+                    previewOnlyByDefault: true,
+                    previewLabel: "Diagram",
+                },
             },
         });
 
@@ -179,6 +209,10 @@ function Wysiwyg({
             );
         });
 
+        // Delegated from the host, not per block: code blocks mount and unmount
+        // as they scroll in and out of view.
+        const unpin = pinSourceWhileEditing(host.current);
+
         let cancelled = false;
         // Destroying mid-create throws, and StrictMode unmounts immediately in dev,
         // so always wait for create() to settle before tearing down.
@@ -200,6 +234,7 @@ function Wysiwyg({
         });
         return () => {
             cancelled = true;
+            unpin();
             onFindApiRef.current(null);
             created.finally(() => crepe.destroy());
         };
