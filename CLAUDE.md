@@ -19,14 +19,15 @@ pnpm tauri dev                          # run the app (starts vite on :1420 itse
 pnpm test                               # vitest, all unit tests
 pnpm vitest run src/lib/contrast.test.ts # single file
 pnpm vitest run -t "sparseOverrides"    # single suite/test by name
-pnpm build                              # tsc typecheck + vite build
+pnpm build:web                          # tsc typecheck + vite build
+pnpm check                              # typecheck + vitest + rustfmt + clippy + cargo test
 pnpm tauri build                        # bundle (deb/appimage targets configured)
 
 cd src-tauri && cargo test              # Rust integration tests
 cd src-tauri && cargo test round_trips_content_through_restore
 ```
 
-There is no ESLint/Prettier config. `pnpm build` (i.e. `tsc`) is the lint: `strict`, `noUnusedLocals`,
+There is no ESLint/Prettier config. `pnpm typecheck` (i.e. `tsc`) is the lint: `strict`, `noUnusedLocals`,
 `noUnusedParameters`. The `eslint-disable-next-line react-hooks/exhaustive-deps` comments are deliberate markers on
 mount-once effects, not leftovers.
 
@@ -44,11 +45,24 @@ watcher, config persistence — happens in the frontend through `@tauri-apps/plu
 registering it in `invoke_handler!`; adding a new fs/plugin API usually means adding a permission to
 `src-tauri/capabilities/default.json`.
 
-**`src/App.tsx` is the orchestrator** (~1000 lines, sectioned by `// ---- name ----` comments). It owns all cross-cutting
-state and every effect: session load/save, panel layout, autosave, the external-change watcher, checkpoint triggers,
-theme application. Components in `src/components/` are largely presentational and receive callbacks; `src/lib/` holds
-pure logic (unit-tested) plus thin `invoke` wrappers. Adding a feature usually means a lib function + a component + wiring
-in `App.tsx`.
+**`src/App.tsx` is the orchestrator** (~400 lines). It owns the `Session` object and its load/save, and nothing else:
+each cross-cutting concern is a hook in `src/hooks/`, and each piece of the render tree is a component in
+`src/components/`. Components are largely presentational and receive callbacks; `src/lib/` holds pure logic
+(unit-tested) plus thin `invoke` wrappers. Adding a feature usually means a lib function + a component + wiring in
+`App.tsx`.
+
+**The hooks are called in dependency order and that order is load-bearing.** `useStatus` → `useGitAvailable` →
+`usePanelLayout` → `useAppearance` → `useFind` → `useTerminals` → `useZoom` → `useDocument` → `useCheckpoints` →
+`useBranches`. Effects run in the order their hooks appear, `useDocument` needs the panel refs and the resolved
+settings, and both `useCheckpoints` and `useBranches` need the document's buffer and its save path. That last edge is
+why `useGitAvailable` is its own hook and why the watcher's "commit the buffer before an external write lands" step is
+injected into `useDocument` as `onBeforeExternalChange` rather than called directly — checkpointing depends on the
+document, so the document must not reach back into checkpointing.
+
+`useDocument` is the largest of them because the save/watch invariant below cannot be split: `content`, `dirty`,
+`revision`, `lastWrite` and the watcher are one mechanism. Downstream hooks take its return value as `doc` and
+destructure only the stable members they need (`contentRef`, `dirtyRef`, `flushSave`, `saveNow`, `loadInto`) — never
+put `doc` itself in a dependency array.
 
 **One `Session` object is the app's state** (`src/types.ts`), persisted debounced to `session.json` in the OS app config
 dir. Loading shallow-merges over `DEFAULT_SESSION` so new keys pick up defaults — keep new fields optional-safe rather
@@ -75,7 +89,7 @@ style keys back to `ProjectOverrides`. Never write a full settings object into a
 Cursor positions are tagged with the `EditorMode` that produced them (`OpenFile.cursorMode`), because ProseMirror
 positions and CodeMirror offsets are not interchangeable; restore only when the modes match.
 
-### Save / watch loop — the invariant to preserve
+### Save / watch loop — the invariant to preserve (`hooks/useDocument.ts`)
 
 Autosave fires 1s after typing stops (`Cmd/Ctrl+S` forces it) because Claude may read the file off disk at any moment.
 The `lastWrite` ref holds the content of our own most recent write so the `plugin-fs` watcher can ignore its own echo;

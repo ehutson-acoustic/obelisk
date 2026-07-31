@@ -63,6 +63,9 @@ export type Session = {
     layouts: Record<string, PanelLayout>;
 };
 
+/** Merge a few keys into the session. Handed to the hooks that own a slice. */
+export type SessionPatch = (p: Partial<Session>) => void;
+
 export const DEFAULT_SESSION: Session = {
     projects: [],
     activeProjectId: null,
