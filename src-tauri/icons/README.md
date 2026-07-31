@@ -14,8 +14,8 @@ geometry are deliberate:
 * The lower crossbar is 20% shorter than the upper one. Equal bars read as a
   cross rather than as a printer's mark.
 
-`src/components/BrandMark.tsx` redraws the same mark for the app header and has
-to be updated alongside this file.
+The mark is deliberately *not* redrawn in the app's own UI: in the header it
+competed with the editor themes for attention without earning its place.
 
 ## Regenerating
 

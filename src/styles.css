@@ -115,22 +115,6 @@ button:focus-visible {
     position: relative;
 }
 
-/* Absolute so it occupies no flex space: the tab strip's left margin is
-   measured off the sidebar, and a sibling in flow would push it out of line.
-   Fits the sidebar even when collapsed to its 56px rail. */
-.brand {
-    position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    user-select: none;
-}
-
 /* Starts past the left sidebar (plus its 1px separator) so the first tab lines
    up with the editor. A margin, not padding, so the strip never scrolls out
    over the sidebar. */
@@ -1049,6 +1033,20 @@ button:focus-visible {
     /* Scaled here rather than by CodeMirror, which cannot be told a font size
        reactively. `Source` calls requestMeasure() so its metrics keep up. */
     font-size: calc(13px * var(--editor-zoom, 1));
+}
+
+/* CodeMirror's base theme hardcodes the current line's gutter cell: #222227 in
+   dark, which one-dark and Crepe's dark sheet both restate in their own terms,
+   and a fixed pale blue (#e2f2ff) in light, which belongs to no theme here and
+   reads as grey under the warmer palettes. Only light is restated, using the
+   same accent wash the file tree marks its active row with. Unscoped so it
+   reaches code blocks inside the WYSIWYG view as well as `Source`.
+
+   No `!important`: style-mod mounts CodeMirror's sheet as head's *first* child,
+   so an equal-specificity rule here is later in the document and wins. */
+:root[data-theme="light"] .cm-activeLineGutter {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
 }
 
 /* Frontmatter renders as a native <details>, collapsed by default. */
