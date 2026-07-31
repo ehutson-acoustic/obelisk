@@ -1,0 +1,618 @@
+/* Everything that hangs off the chrome: the terminal panel, the project
+   sidebar, the contents of the right-hand panel (files, versions, search), the
+   find bar and the branch popover. The panel *frame* they sit in is
+   `.panel-*` in primitives.css. */
+
+/* ---- terminal panel ---------------------------------------------------- */
+
+.terminal-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.term-tabs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: none;
+    height: 32px;
+    padding: 0 6px;
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--border);
+}
+
+.term-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.term-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--fg-muted);
+    cursor: pointer;
+}
+
+.term-tab.active {
+    background: var(--bg-sunken);
+    color: var(--fg);
+}
+
+.terminal-body {
+    flex: 1;
+    min-height: 0;
+    background: var(--term-bg);
+    overflow: hidden;
+}
+
+/* The xterm instance inside this host is sized and painted from vendor.css. */
+.terminal-view {
+    height: 100%;
+    padding: 4px 0 0 8px;
+}
+
+.term-tab .tab-close {
+    margin-left: 2px;
+    opacity: 0.6;
+}
+
+.term-tab .tab-close:hover {
+    opacity: 1;
+    background: var(--border);
+}
+
+/* ---- project sidebar --------------------------------------------------- */
+
+.project-sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-sunken);
+    border-right: 1px solid var(--border);
+}
+
+.project-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.project-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    min-height: 56px;
+    overflow: hidden;
+}
+
+.project-card.selected {
+    border-color: var(--fg);
+    box-shadow: 0 0 0 2px var(--bg-sunken);
+}
+
+.project-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.project-dir {
+    font-size: 11px;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    direction: rtl;
+    text-align: left;
+}
+
+.project-card.add {
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--border-strong);
+    color: var(--fg-muted);
+    background: transparent;
+    min-height: 44px;
+}
+
+.project-card.add:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.project-sidebar.collapsed .project-list {
+    padding: 6px;
+    align-items: center;
+}
+
+.project-sidebar.collapsed .project-card {
+    width: 36px;
+    height: 36px;
+    min-height: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.project-initial {
+    font-weight: 700;
+}
+
+.sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    border-top: 1px solid var(--border);
+}
+
+/* Full-width rows with labels when expanded; centred icons when collapsed. */
+.side-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--fg-muted);
+}
+
+.side-btn:hover {
+    background: var(--bg-raised);
+    color: var(--fg);
+}
+
+.project-sidebar.collapsed .side-btn {
+    justify-content: center;
+    padding: 7px 0;
+}
+
+/* ---- side panel tabs --------------------------------------------------- */
+
+.side-tabs {
+    display: flex;
+    gap: 2px;
+}
+
+.side-tabs button {
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.side-tabs button.active {
+    background: var(--bg-sunken);
+    color: var(--fg);
+}
+
+/* ---- versions ---------------------------------------------------------- */
+
+.version-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "title restore" "meta restore";
+    gap: 0 8px;
+    width: 100%;
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.version-row:hover:not(:disabled) {
+    background: var(--bg-sunken);
+}
+
+.version-title {
+    grid-area: title;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The list mixes the editor's commits with the user's own, so the editor's are
+   marked rather than the other way round — those are the majority in practice. */
+.version-mark {
+    flex: none;
+    color: var(--accent);
+}
+
+.version-meta {
+    grid-area: meta;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--fg-muted);
+}
+
+.version-meta code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+}
+
+.version-restore {
+    grid-area: restore;
+    align-self: center;
+    color: var(--fg-muted);
+    opacity: 0;
+}
+
+.version-row:hover .version-restore {
+    opacity: 1;
+    color: var(--accent);
+}
+
+/* ---- file tree --------------------------------------------------------- */
+
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 24px;
+    padding-right: 8px;
+    font-size: 13px;
+    color: var(--fg);
+    white-space: nowrap;
+}
+
+.tree-row:hover {
+    background: var(--bg-sunken);
+}
+
+.tree-row.active {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+}
+
+.tree-row.selected {
+    background: var(--bg-sunken);
+}
+
+.tree-caret {
+    flex: none;
+    color: var(--fg-muted);
+}
+
+.tree-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-row .plain {
+    color: var(--fg-muted);
+}
+
+.tree-row .md {
+    color: var(--accent);
+}
+
+/* ---- find bar ---------------------------------------------------------- */
+
+.find-bar {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+}
+
+.find-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.find-input {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg);
+}
+
+.find-input:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* A half-typed regex is the usual reason, so this warns rather than alarms. */
+.find-input.invalid {
+    border-color: var(--danger);
+}
+
+.find-input input {
+    border: none;
+    border-radius: 6px;
+    background: none;
+}
+
+.find-input input:focus-visible {
+    outline: none;
+}
+
+.find-count {
+    flex: none;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-muted);
+    white-space: nowrap;
+}
+
+/* The toggles themselves are `.icon-btn.on` in primitives.css. */
+.find-toggles {
+    flex: none;
+    display: flex;
+    gap: 2px;
+}
+
+/* ---- project search ---------------------------------------------------- */
+
+.search-controls {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-capped {
+    display: block;
+    padding: 6px 10px;
+}
+
+.search-file {
+    border-bottom: 1px solid var(--border);
+}
+
+.search-file-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 5px 8px;
+    text-align: left;
+    color: var(--fg-muted);
+}
+
+.search-file-head:hover {
+    background: var(--bg-sunken);
+}
+
+.search-file-name {
+    flex: 1;
+    overflow: hidden;
+    /* Truncates from the left so the filename stays visible on a deep path. */
+    direction: rtl;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.search-file-count {
+    flex: none;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.search-hit {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    padding: 3px 8px 3px 22px;
+    text-align: left;
+}
+
+.search-hit:hover {
+    background: var(--bg-sunken);
+}
+
+.search-line {
+    flex: none;
+    min-width: 2.5em;
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--fg-muted);
+}
+
+.search-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+}
+
+.search-text mark {
+    padding: 0 1px;
+    border-radius: 2px;
+    background: var(--banner-bg);
+    color: var(--fg);
+    box-shadow: inset 0 0 0 1px var(--banner-border);
+}
+
+/* ---- branch picker ----------------------------------------------------- */
+
+.branch-btn {
+    max-width: 200px;
+}
+
+.branch-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A detached HEAD shows a sha instead of a name, and checkpointing is off. */
+.branch-name.detached {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--fg-muted);
+}
+
+.branch-popover {
+    display: flex;
+    flex-direction: column;
+    width: 320px;
+    max-height: 70vh;
+    padding: 8px;
+    gap: 8px;
+}
+
+.branch-head {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.branch-filter {
+    flex: none;
+}
+
+.branch-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -4px;
+}
+
+.branch-group + .branch-group {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+}
+
+.branch-group-label {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+}
+
+.branch-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: left;
+}
+
+.branch-item:hover:not(:disabled),
+.branch-item:focus-visible {
+    background: var(--bg-sunken);
+}
+
+/* Reserved even when empty, so names stay aligned whether or not a row is the
+   current branch. */
+.branch-check {
+    flex: none;
+    width: 13px;
+    display: inline-flex;
+    color: var(--accent);
+}
+
+.branch-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.branch-item.current .branch-item-name {
+    font-weight: 600;
+}
+
+.branch-badge {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    font-size: 10px;
+    color: var(--fg-muted);
+}
+
+.branch-ref {
+    flex: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--fg-muted);
+}
+
+.branch-empty {
+    padding: 10px;
+    font-size: 12px;
+    color: var(--fg-muted);
+}
+
+.branch-error {
+    flex: none;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--banner-border);
+    background: var(--banner-bg);
+}
+
+/* git's message is shown verbatim; it is usually multi-line and names files. */
+.branch-error pre {
+    margin: 0 0 8px;
+    max-height: 120px;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    white-space: pre-wrap;
+}
+
+.branch-error-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}

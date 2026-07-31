@@ -140,6 +140,21 @@ what lets `lastWrite` suppress the watcher echo, and it leaves the index alone.
 `src-tauri/tests/checkpoints.rs` covers all of this against throwaway repos; it is the one place where a bug silently
 destroys the user's writing or their staged work, so extend those tests with any change here.
 
+### Stylesheets (`src/styles/`)
+
+`styles/index.css` is an ordered list of `@import`s and nothing else; the order is load-bearing and that file explains
+why. Reading order is also dependency order: `base` (palette variables, reset, element defaults) → `primitives` (the
+classes several components share — `.btn` appears in fourteen of the nineteen components, so these are not colocatable)
+→ `shell` → `panels` → `editor` → `settings` → `vendor`.
+
+`vendor.css` must stay last. Most of it matches a library's own selector *exactly* rather than out-specifying it, and
+wins on document order alone — Crepe's selection toolbar, xterm's viewport, CodeMirror's active-line gutter. The same
+reasoning puts our CSS import *below* the `App` import in `main.tsx`: Vite emits CSS in module-graph order, so Crepe's
+and xterm's sheets have to arrive first. Nothing in `pnpm check` catches a violation of either rule — it surfaces as a
+visual bug at runtime, so leave the comments in place.
+
+A rule belongs in `primitives.css` once a second component uses it; until then it belongs with its component.
+
 ### Theming
 
 A **theme** (`THEMES` in `editorSettings.ts`) is a light palette, a dark palette, and a typography baseline — see
@@ -151,7 +166,7 @@ mechanisms, all generated as stylesheet text and injected via `injectStyle()`:
   CodeMirror instances, paragraphs carry Crepe's own size) and must out-specify Crepe's rules.
 
 * The palette → `<style id="app-palette">` from `paletteCss()`, as `:root[data-theme="light"|"dark"]` blocks. The
-  attribute selector is required to out-specify the bare `:root` defaults in `styles.css`.
+  attribute selector is required to out-specify the bare `:root` defaults in `styles/base.css`.
 
 * Crepe's light/dark themes are separate stylesheets defining the same variables, so `lib/theme.ts` swaps the `href` of a
   single `<link id="crepe-theme">`. Never statically import a Crepe theme CSS file — that pins one variant.

@@ -156,7 +156,7 @@ export const BASE: Record<ComponentKey, ComponentStyle> = {
 };
 
 /**
- * The CSS variables `styles.css` styles the whole app against. A theme supplies
+ * The CSS variables `styles/base.css` styles the whole app against. A theme supplies
  * every one for both modes rather than inheriting some, so no palette can be
  * half-applied.
  */
@@ -604,7 +604,7 @@ const PALETTE_VARS: Record<keyof Palette, string> = {
 /**
  * The active theme's palette, as `:root[data-theme=…]` rules.
  *
- * Both modes are emitted under an attribute selector deliberately: `styles.css`
+ * Both modes are emitted under an attribute selector deliberately: `styles/base.css`
  * declares its own defaults on a bare `:root` (light) and `:root[data-theme="dark"]`,
  * so matching the *attribute* form is what makes these win in both directions —
  * higher specificity than the bare rule, and later in the document than the dark

@@ -1,0 +1,180 @@
+/* The editor pane: its scroll host, the mode toggle, the two view hosts, and
+   the elements our own code puts inside the document (frontmatter blocks,
+   mermaid diagrams). Rules that override Crepe's or CodeMirror's own
+   stylesheets are in vendor.css, which has to load after this file. */
+
+.editor-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 0;
+}
+
+.editor-scroll-host {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    position: relative;
+}
+
+.editor-panel {
+    position: relative;
+    min-height: 100%;
+}
+
+.editor-mode-toggle {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    float: right;
+    display: flex;
+    gap: 2px;
+    margin: 8px 12px 0 0;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-raised);
+}
+
+.editor-mode-toggle button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--fg-muted);
+}
+
+.editor-mode-toggle button.active {
+    background: var(--bg-sunken);
+    color: var(--fg);
+}
+
+.editor-empty {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    min-height: 200px;
+    color: var(--fg-muted);
+}
+
+.crepe-host,
+.cm-host {
+    min-height: 100%;
+}
+
+.cm-host .cm-editor {
+    height: 100%;
+}
+
+.cm-host .cm-scroller {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    /* Scaled here rather than by CodeMirror, which cannot be told a font size
+       reactively. `Source` calls requestMeasure() so its metrics keep up. */
+    font-size: calc(13px * var(--editor-zoom, 1));
+}
+
+/* ---- frontmatter ------------------------------------------------------- */
+
+/* Frontmatter renders as a native <details>, collapsed by default. */
+.frontmatter {
+    margin: 0 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-sunken);
+    overflow: hidden;
+}
+
+.frontmatter > summary {
+    padding: 5px 10px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    user-select: none;
+}
+
+.frontmatter > summary::-webkit-details-marker {
+    display: none;
+}
+
+.frontmatter > summary::before {
+    content: "▸ ";
+}
+
+.frontmatter[open] > summary::before {
+    content: "▾ ";
+}
+
+.frontmatter pre {
+    margin: 0;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.frontmatter code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    white-space: pre;
+}
+
+/* ---- mermaid diagrams -------------------------------------------------- */
+
+/* The diagram itself is coloured by mermaid, from the palette (DESIGN §2.6).
+   The block it is drawn in belongs to Crepe — see vendor.css. */
+
+/* Zoom scales the drawn diagram rather than being fed to mermaid as a larger
+   font: mermaid bakes its geometry into the SVG, so going through the layout
+   would mean redrawing every diagram on every zoom step. One variable write is
+   the whole mechanism everywhere else in the editor (DESIGN §7). */
+.mermaid-diagram {
+    zoom: var(--editor-zoom, 1);
+}
+
+.mermaid-diagram svg {
+    /* Mermaid writes intrinsic width/height onto the SVG, so a wide diagram
+       would otherwise push the whole editor panel sideways rather than scroll
+       inside the `overflow-x: auto` Crepe puts on `.preview`. */
+    max-width: 100%;
+    height: auto;
+}
+
+/* A diagram that will not parse. Shown rather than left blank: with the preview
+   open by default, an empty panel reads as the app having failed, not the
+   diagram. */
+.mermaid-diagram[data-mermaid-error] {
+    padding: 10px 12px;
+    border: 1px solid var(--banner-border);
+    border-radius: 6px;
+    background: var(--banner-bg);
+    color: var(--danger);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+    white-space: pre-wrap;
+}
+
+/* ---- conflict banner --------------------------------------------------- */
+
+.conflict-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--banner-bg);
+    border-bottom: 1px solid var(--banner-border);
+    font-size: 13px;
+}
+
+.conflict-actions {
+    display: flex;
+    gap: 6px;
+    flex: none;
+}

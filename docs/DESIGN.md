@@ -379,7 +379,7 @@ Six ship: **Obelisk** (the original neutral greys), **Paper**, **Focus** (near-m
 **Calm**, **Contrast**, **Ink**.
 
 Palettes are applied by generating `:root[data-theme="light"]` and `:root[data-theme="dark"]` blocks into a `<style>`
-element. The attribute form is load-bearing: `styles.css` declares its own defaults on a bare `:root` plus
+element. The attribute form is load-bearing: `styles/base.css` declares its own defaults on a bare `:root` plus
 `:root[data-theme="dark"]`, and matching the attribute is what makes the theme win in both directions.
 
 The twelve palettes are held to contrast floors by tests — WCAG AAA (7:1) for body text, AA (4.5:1) for muted text and

@@ -1,0 +1,122 @@
+/* Rules that restyle DOM the libraries own: Crepe/Milkdown, CodeMirror, xterm.
+ *
+ * THIS FILE MUST LOAD LAST. Several rules here match a library's own selector
+ * exactly rather than out-specifying it, and win only because they come later
+ * in the document — see the note at the top of index.css for how that position
+ * is established, and preserve it if you touch either file. */
+
+/* ---- CodeMirror -------------------------------------------------------- */
+
+/* CodeMirror's base theme hardcodes the current line's gutter cell: #222227 in
+   dark, which one-dark and Crepe's dark sheet both restate in their own terms,
+   and a fixed pale blue (#e2f2ff) in light, which belongs to no theme here and
+   reads as grey under the warmer palettes. Only light is restated, using the
+   same accent wash the file tree marks its active row with. Unscoped so it
+   reaches code blocks inside the WYSIWYG view as well as `Source`.
+
+   No `!important`: style-mod mounts CodeMirror's sheet as head's *first* child,
+   so an equal-specificity rule here is later in the document and wins. */
+:root[data-theme="light"] .cm-activeLineGutter {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+}
+
+/* ---- Crepe: inline code inside our frontmatter block ------------------- */
+
+/* Crepe paints every `code` element — this one included — with its inline-code
+   red and fill, via `.milkdown .ProseMirror code`. That is two classes plus an
+   element, so out-specifying it needs the extra class. The YAML here is body
+   text that happens to be monospaced, not a code span: it takes the body colour
+   and sits on the box's own surface. */
+.milkdown .ProseMirror .frontmatter code {
+    color: var(--fg);
+    background: none;
+    padding: 0;
+}
+
+/* Crepe's selection toolbar has no `shouldShow` hook, and bold / italic / link
+   mean nothing in YAML — applying one would corrupt the frontmatter. The marker
+   sits on the root because the toolbar mounts outside the editor's subtree, and
+   `!important` is needed because the tooltip positions itself inline. */
+:root.frontmatter-selection .milkdown-toolbar {
+    display: none !important;
+}
+
+/* ---- Crepe: selection toolbar ------------------------------------------ */
+
+/* Crepe styles this from its own palette, which knows nothing about the six
+   themes: in light mode its surface is the same near-white as the editor
+   beneath it, leaving a faint shadow to do all the work of separating them.
+   Restyled against the app's own variables so it reads as a floating surface
+   and follows whichever theme is active.
+
+   These match Crepe's selectors exactly rather than out-specifying them — this
+   sheet is bundled after Crepe's, so equal specificity wins. */
+.milkdown .milkdown-toolbar {
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.milkdown .milkdown-toolbar .divider {
+    background: var(--border);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item svg {
+    color: var(--fg-muted);
+    fill: var(--fg-muted);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:hover {
+    background: var(--bg-sunken);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:hover svg {
+    color: var(--fg);
+    fill: var(--fg);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item.active svg {
+    color: var(--accent);
+    fill: var(--accent);
+}
+
+/* ---- Crepe: code block, as the mermaid preview host -------------------- */
+
+/* The diagram itself is coloured by mermaid, from the palette (DESIGN §2.6);
+   only its box is styled here. Crepe centres the preview already. */
+.milkdown .milkdown-code-block .preview {
+    padding: 4px 0 8px;
+}
+
+/* Crepe hides the source of any block showing a preview. That is right until
+   the caret is *in* the source — the block a diagram is being typed into would
+   otherwise disappear the moment its first line parses. `pinSourceWhileEditing`
+   marks the block; this out-specifies Crepe's own `.hidden`, which is
+   `!important` and so cannot simply be overridden by ordering. */
+.milkdown .milkdown-code-block.mermaid-editing .codemirror-host.hidden {
+    display: block !important;
+}
+
+/* In preview-only mode Crepe drops its divider and label, so a pinned block
+   needs its own separation between the source and the diagram under it. */
+.milkdown .milkdown-code-block.mermaid-editing .preview-panel {
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+}
+
+/* ---- xterm ------------------------------------------------------------- */
+
+.terminal-view .xterm {
+    height: 100%;
+}
+
+/* xterm renders whole rows only, so up to a row of slack is left over — and it
+   paints the theme background on the scrollable element, which is exactly as
+   tall as those rows, leaving the slack showing the viewport's stock black.
+   That black band was the "gap" above the footer. Must stay in step with the
+   `background` in xtermTheme() (lib/theme.ts). */
+.terminal-view .xterm-viewport {
+    background-color: var(--term-bg);
+}
