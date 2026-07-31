@@ -139,6 +139,24 @@ the palette is wrong — do not lower the floor.
 Editor font sizes are emitted as `calc(<size> * var(--editor-zoom))` (`DESIGN §7`), so zoom is one variable write. Any new
 absolute size in the editor should go through `scaled()`.
 
+### Mermaid diagrams (`lib/mermaid.ts`)
+
+A ```` ```mermaid ```` fence stays an ordinary code block; the diagram goes in the preview panel Crepe's code-block
+component already has, through its `renderPreview` config (`DESIGN §2.6`). Nothing about the document model changes, so
+diagrams round-trip as written and source mode is untouched. mermaid is dynamically imported on first use.
+
+Four consequences of mermaid baking colours and geometry into the SVG it emits:
+
+* Diagrams are drawn on mermaid's `base` theme with the active palette substituted in, not on its own themes.
+  `mermaid.test.ts` asserts the contrast floors over all twelve palettes — if it fails, the palette is wrong.
+* A theme switch cannot be a stylesheet swap; `retintDiagrams` finds drawn diagrams in the DOM and lays them out again.
+  Their handle is the source stashed on the element as **base64** — DOMPurify strips any attribute containing `-->`.
+* Zoom is CSS `zoom` on the diagram, the one place `DESIGN §7`'s objection to it does not apply.
+* `pinSourceWhileEditing` keeps a block's source open while the caret is in it. Without it the CodeMirror being typed
+  into disappears the moment the diagram first parses. Do not replace it with `:focus-within` — that is the failure.
+
+Renders go through a serial queue: `mermaid.initialize` is module-global state that `render` reads across its awaits.
+
 ### Find (`lib/find.ts`)
 
 One `FindApi` interface over two backends — `prosemirror-search` in WYSIWYG, `@codemirror/search` in source. Each view

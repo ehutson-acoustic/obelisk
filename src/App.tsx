@@ -54,12 +54,14 @@ import {
     mergeSettings,
     paletteCss,
     type ProjectOverrides,
+    resolveComponents,
     stepZoom,
     themeCss,
     themeDef,
 } from "./lib/editorSettings";
 import type {FindApi} from "./lib/find";
 import {basename, dirname, isMarkdown, readFile, writeFile} from "./lib/files";
+import type {DiagramStyle} from "./lib/mermaid";
 import {loadProjectSettings} from "./lib/projectSettings";
 import {loadSession, saveSession} from "./lib/session";
 import {applyTheme, injectStyle, resolveTheme, type Theme, watchSystemTheme,} from "./lib/theme";
@@ -252,6 +254,22 @@ export default function App() {
     useEffect(() => {
         injectStyle("app-palette", paletteCss(editorSettings));
     }, [editorSettings]);
+
+    /**
+     * Mermaid diagrams are the one thing a theme switch cannot restyle through a
+     * stylesheet — mermaid resolves colours while it lays a diagram out and
+     * writes them into the SVG (DESIGN §2.6) — so the values it needs are passed
+     * down as data rather than left to CSS.
+     */
+    const diagramStyle: DiagramStyle = useMemo(() => {
+        const body = resolveComponents(editorSettings).body;
+        return {
+            theme,
+            palette: themeDef(editorSettings.theme)[theme],
+            fontFamily: body.fontFamily ?? "",
+            fontSize: body.fontSize ?? "",
+        };
+    }, [editorSettings, theme]);
 
     /**
      * Set on the root rather than the editor panel: `--content-width` is declared
@@ -1151,6 +1169,7 @@ export default function App() {
                                             revision={revision}
                                             mode={session.mode}
                                             theme={theme}
+                                            diagramStyle={diagramStyle}
                                             zoom={session.editorZoom ?? DEFAULT_ZOOM}
                                             onModeChange={(mode: EditorMode) => patch({mode})}
                                             value={content}
