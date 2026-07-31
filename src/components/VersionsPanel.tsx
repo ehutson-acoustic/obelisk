@@ -2,7 +2,8 @@ import {GitCommitVertical, History, RotateCcw, User} from "lucide-react";
 import type {Checkpoint} from "../lib/checkpoints";
 import {formatRelative} from "../lib/relativeTime";
 
-type Props = {
+/** Exported so `SidePanel` can forward these without restating every field. */
+export type VersionsPanelProps = {
     checkpoints: Checkpoint[];
     hasFile: boolean;
     gitMissing: boolean;
@@ -31,7 +32,7 @@ export function VersionsPanel({
                                   checkpointsOnly,
                                   onCheckpointsOnlyChange,
                                   onRestore,
-                              }: Readonly<Props>) {
+                              }: Readonly<VersionsPanelProps>) {
     const shown = checkpointsOnly
         ? checkpoints.filter((c) => c.checkpoint)
         : checkpoints;

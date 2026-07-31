@@ -1,32 +1,20 @@
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {invoke} from "@tauri-apps/api/core";
 import {exists, watch} from "@tauri-apps/plugin-fs";
-import {
-    ChevronDown,
-    ChevronUp,
-    Copy,
-    FilePlus,
-    GitCommitVertical,
-    PanelRightClose,
-    PanelRightOpen,
-    Plus,
-    TerminalSquare,
-    X,
-} from "lucide-react";
+import {GitCommitVertical, PanelRightClose, PanelRightOpen} from "lucide-react";
 import type {RefObject} from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Group, type Layout, Panel, type PanelImperativeHandle, Separator, usePanelRef,} from "react-resizable-panels";
 import {BranchMenu, type BranchTarget} from "./components/BranchMenu";
 import {CheckpointDialog} from "./components/CheckpointDialog";
-import {Editor} from "./components/Editor";
-import {FileBrowser} from "./components/FileBrowser";
-import {FindBar} from "./components/FindBar";
-import {SearchPanel} from "./components/SearchPanel";
+import {EditorPane} from "./components/EditorPane";
+import {FileTabs} from "./components/FileTabs";
+import {OpenFilesMenu} from "./components/OpenFilesMenu";
 import {ProjectSettingsDialog} from "./components/ProjectSettingsDialog";
 import {ProjectSidebar} from "./components/ProjectSidebar";
 import {SettingsDialog} from "./components/SettingsDialog";
-import {TerminalView} from "./components/Terminal";
-import {VersionsPanel} from "./components/VersionsPanel";
+import {SidePanel} from "./components/SidePanel";
+import {StatusBar} from "./components/StatusBar";
+import {TerminalPanel} from "./components/TerminalPanel";
 import {type AppSettings, DEFAULT_APP_SETTINGS, loadAppSettings, saveAppSettings,} from "./lib/appSettings";
 import {
     type Branches,
@@ -296,6 +284,16 @@ export default function App() {
         syncLeftWidth();
     };
 
+    /** Unlike the other three, this collapse is view state and is not persisted. */
+    const toggleFilesPanel = useCallback(() => {
+        const p = filesPanel.current;
+        if (!p) return;
+        const wasCollapsed = p.isCollapsed();
+        if (wasCollapsed) p.expand();
+        else p.collapse();
+        setFilesCollapsed(!wasCollapsed);
+    }, [filesPanel]);
+
     // ---- terminals -----------------------------------------------------------
 
     useEffect(() => {
@@ -452,6 +450,20 @@ export default function App() {
             return {...s, openFiles, activeFilePath: next};
         });
     };
+
+    const selectFile = useCallback(
+        (path: string) => patch({activeFilePath: path}),
+        [patch],
+    );
+
+    const onEditorScroll = useCallback((top: number) => {
+        setSession((s) => ({
+            ...s,
+            openFiles: s.openFiles.map((f) =>
+                f.path === s.activeFilePath ? {...f, scroll: top} : f,
+            ),
+        }));
+    }, []);
 
     // ---- autosave ------------------------------------------------------------
 
@@ -961,85 +973,23 @@ export default function App() {
 
     // ---- render --------------------------------------------------------------
 
-    /** Shared by both side panels, standing in for their panel title. */
-    const sideTabs = (
-        <div className="side-tabs" role="tablist" aria-label="Side panel">
-            {(["files", "search"] as const).map((id) => (
-                <button
-                    key={id}
-                    role="tab"
-                    aria-selected={session.sidePanel === id}
-                    className={session.sidePanel === id ? "active" : ""}
-                    onClick={() => patch({sidePanel: id})}
-                >
-                    {id === "files" ? "Files" : "Search"}
-                </button>
-            ))}
-        </div>
-    );
-
     return (
         <div className="app">
             <header className="header">
-                <div className="tabs" ref={tabStrip}>
-                    {session.openFiles.map((f) => (
-                        <div
-                            key={f.path}
-                            className={`tab${f.path === activePath ? " active" : ""}`}
-                            onClick={() => patch({activeFilePath: f.path})}
-                        >
-                            <span className="tab-name">{basename(f.path)}</span>
-                            {f.path === activePath && dirty && <span className="tab-dot"/>}
-                            <button
-                                className="tab-close"
-                                title="Close"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    closeFile(f.path);
-                                }}
-                            >
-                                <X size={12}/>
-                            </button>
-                        </div>
-                    ))}
-                </div>
+                <FileTabs
+                    files={session.openFiles}
+                    activePath={activePath}
+                    dirty={dirty}
+                    stripRef={tabStrip}
+                    onSelect={selectFile}
+                    onClose={closeFile}
+                />
                 <div className="header-actions">
-                    {/* ponytail: shown whenever anything is open rather than only when
-              the strip actually overflows — measuring that costs a resize
-              observer and a re-render, and a permanent list is easier to find
-              anyway. Gate it on overflow if the button starts feeling noisy. */}
-                    {session.openFiles.length > 0 && (
-                        <DropdownMenu.Root>
-                            <DropdownMenu.Trigger asChild>
-                                <button className="icon-btn" title="Open files">
-                                    <ChevronDown size={16}/>
-                                </button>
-                            </DropdownMenu.Trigger>
-                            <DropdownMenu.Portal>
-                                <DropdownMenu.Content
-                                    className="menu file-menu"
-                                    align="end"
-                                    sideOffset={4}
-                                >
-                                    {session.openFiles.map((f) => (
-                                        <DropdownMenu.Item
-                                            key={f.path}
-                                            className={`menu-item file${f.path === activePath ? " active" : ""}`}
-                                            onSelect={() => patch({activeFilePath: f.path})}
-                                        >
-                                            <span className="menu-item-name">
-                                                {basename(f.path)}
-                                            </span>
-                                            {/* Two files can share a name, so the folder disambiguates them. */}
-                                            <span className="menu-item-dir">
-                                                {dirname(f.path)}
-                                            </span>
-                                        </DropdownMenu.Item>
-                                    ))}
-                                </DropdownMenu.Content>
-                            </DropdownMenu.Portal>
-                        </DropdownMenu.Root>
-                    )}
+                    <OpenFilesMenu
+                        files={session.openFiles}
+                        activePath={activePath}
+                        onSelect={selectFile}
+                    />
                     <BranchMenu
                         state={repo}
                         branches={branches}
@@ -1119,66 +1069,35 @@ export default function App() {
                             onLayoutChanged={onLayoutChanged("center")}
                         >
                             <Panel id="editor">
-                                <div className="editor-wrap">
-                                    {conflict != null && (
-                                        <div className="conflict-banner">
-                      <span>
-                        {basename(activePath ?? "")} changed on disk while you
-                        were editing.
-                      </span>
-                                            <div className="conflict-actions">
-                                                <button className="btn" onClick={acceptExternal}>
-                                                    Reload
-                                                </button>
-                                                <button className="btn" onClick={keepMine}>
-                                                    Keep mine
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {findOpen && (
-                                        <FindBar
-                                            api={findApi}
-                                            showReplace={findReplace}
-                                            onShowReplaceChange={setFindReplace}
-                                            onClose={closeFind}
-                                            readOnly={readOnly}
-                                        />
-                                    )}
-                                    <div
-                                        className="editor-scroll-host"
-                                        ref={scrollHost}
-                                        onScroll={(e) => {
-                                            const top = e.currentTarget.scrollTop;
-                                            setSession((s) => ({
-                                                ...s,
-                                                openFiles: s.openFiles.map((f) =>
-                                                    f.path === activePath ? {...f, scroll: top} : f,
-                                                ),
-                                            }));
-                                        }}
-                                    >
-                                        <Editor
-                                            path={activePath}
-                                            revision={revision}
-                                            mode={session.mode}
-                                            theme={theme}
-                                            diagramStyle={diagramStyle}
-                                            zoom={session.editorZoom ?? DEFAULT_ZOOM}
-                                            onModeChange={(mode: EditorMode) => patch({mode})}
-                                            value={content}
-                                            readOnly={readOnly}
-                                            cursor={
-                                                activeFile?.cursorMode === session.mode
-                                                    ? activeFile.cursor
-                                                    : undefined
-                                            }
-                                            onChange={onChange}
-                                            onCursorChange={onCursorChange}
-                                            onFindApi={setFindApi}
-                                        />
-                                    </div>
-                                </div>
+                                <EditorPane
+                                    path={activePath}
+                                    revision={revision}
+                                    mode={session.mode}
+                                    theme={theme}
+                                    diagramStyle={diagramStyle}
+                                    zoom={session.editorZoom ?? DEFAULT_ZOOM}
+                                    value={content}
+                                    readOnly={readOnly}
+                                    cursor={
+                                        activeFile?.cursorMode === session.mode
+                                            ? activeFile.cursor
+                                            : undefined
+                                    }
+                                    conflict={conflict}
+                                    findOpen={findOpen}
+                                    findApi={findApi}
+                                    findReplace={findReplace}
+                                    scrollHostRef={scrollHost}
+                                    onModeChange={(mode: EditorMode) => patch({mode})}
+                                    onChange={onChange}
+                                    onCursorChange={onCursorChange}
+                                    onFindApi={setFindApi}
+                                    onFindReplaceChange={setFindReplace}
+                                    onFindClose={closeFind}
+                                    onScroll={onEditorScroll}
+                                    onAcceptExternal={acceptExternal}
+                                    onKeepMine={keepMine}
+                                />
                             </Panel>
 
                             {/* Thin grip so only the top edge drags — the tab bar below it
@@ -1193,108 +1112,32 @@ export default function App() {
                                 collapsible
                                 collapsedSize={TERM_BAR_H}
                             >
-                                <div className="terminal-panel">
-                                    <div className="term-tabs-bar">
-                                        <div className="term-tabs">
-                                            {session.terminals.map((t) => (
-                                                <div
-                                                    key={t.id}
-                                                    className={`term-tab${t.id === session.activeTerminalId ? " active" : ""}`}
-                                                    onClick={() => patch({activeTerminalId: t.id})}
-                                                    title={t.cwd}
-                                                >
-                                                    <TerminalSquare size={13}/>
-                                                    <span>{t.title}</span>
-                                                    <button
-                                                        className="tab-close"
-                                                        title="Close terminal"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            closeTerminal(t.id);
-                                                        }}
-                                                    >
-                                                        <X size={11}/>
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <button
-                                                className="icon-btn"
-                                                title="New terminal"
-                                                onClick={addTerminal}
-                                            >
-                                                <Plus size={14}/>
-                                            </button>
-                                        </div>
-                                        <button
-                                            className="icon-btn"
-                                            title={
-                                                session.terminalCollapsed
-                                                    ? "Show terminal"
-                                                    : "Hide terminal"
-                                            }
-                                            onClick={toggleTerminalPanel}
-                                        >
-                                            {session.terminalCollapsed ? (
-                                                <ChevronUp size={16}/>
-                                            ) : (
-                                                <ChevronDown size={16}/>
-                                            )}
-                                        </button>
-                                    </div>
-
-                                    <div className="terminal-body">
-                                        {session.terminals.length === 0 && (
-                                            <div className="panel-empty">
-                                                No terminal open — click + to start one.
-                                            </div>
-                                        )}
-                                        {shell &&
-                                            session.terminals.map((t) => (
-                                                <TerminalView
-                                                    key={t.id}
-                                                    cwd={t.cwd}
-                                                    shell={shell}
-                                                    startupCommand={t.startupCommand}
-                                                    active={t.id === session.activeTerminalId}
-                                                    theme={theme}
-                                                    palette={themeDef(editorSettings.theme)[theme]}
-                                                    onExit={() => closeTerminal(t.id)}
-                                                />
-                                            ))}
-                                    </div>
-                                </div>
+                                <TerminalPanel
+                                    tabs={session.terminals}
+                                    activeId={session.activeTerminalId}
+                                    collapsed={session.terminalCollapsed}
+                                    shell={shell}
+                                    theme={theme}
+                                    palette={themeDef(editorSettings.theme)[theme]}
+                                    onSelect={(id) => patch({activeTerminalId: id})}
+                                    onClose={closeTerminal}
+                                    onAdd={addTerminal}
+                                    onToggleCollapse={toggleTerminalPanel}
+                                />
                             </Panel>
                         </Group>
 
-                        <footer className="footer">
-                            <div className="footer-path" title={activePath ?? ""}>
-                                <bdi>{activePath ?? "No file open"}</bdi>
-                            </div>
-                            <div className="footer-actions">
-                                {status && <span className="footer-status">{status}</span>}
-                                {readOnly && <span className="footer-badge">read-only</span>}
-                                <button
-                                    className="icon-btn"
-                                    title="Copy file contents"
-                                    disabled={!activePath}
-                                    onClick={copyContents}
-                                >
-                                    <Copy size={14}/>
-                                </button>
-                                <button
-                                    className="icon-btn"
-                                    title="New file in this folder"
-                                    disabled={!activePath}
-                                    onClick={() =>
-                                        setStatus(
-                                            `Use the Files panel — target ${dirname(activePath ?? "")}`,
-                                        )
-                                    }
-                                >
-                                    <FilePlus size={14}/>
-                                </button>
-                            </div>
-                        </footer>
+                        <StatusBar
+                            path={activePath}
+                            status={status}
+                            readOnly={readOnly}
+                            onCopy={copyContents}
+                            onNewFile={() =>
+                                setStatus(
+                                    `Use the Files panel — target ${dirname(activePath ?? "")}`,
+                                )
+                            }
+                        />
                     </div>
                 </Panel>
 
@@ -1308,60 +1151,31 @@ export default function App() {
                     collapsible
                     collapsedSize={0}
                 >
-                    <Group
-                        id="side"
-                        orientation="vertical"
+                    <SidePanel
+                        tab={session.sidePanel}
+                        onTabChange={(sidePanel) => patch({sidePanel})}
+                        root={activeProject?.dir ?? null}
+                        activePath={activePath}
+                        filesCollapsed={filesCollapsed}
+                        filesPanelRef={filesPanel}
                         defaultLayout={session.layouts.side}
                         onLayoutChanged={onLayoutChanged("side")}
-                    >
-                        <Panel
-                            panelRef={filesPanel}
-                            id="files"
-                            defaultSize="60"
-                            collapsible
-                            collapsedSize={28}
-                        >
-                            {session.sidePanel === "search" ? (
-                                <SearchPanel
-                                    root={activeProject?.dir ?? null}
-                                    titleSlot={sideTabs}
-                                    onOpen={openAtLine}
-                                />
-                            ) : (
-                                <FileBrowser
-                                    root={activeProject?.dir ?? null}
-                                    activePath={activePath}
-                                    collapsed={filesCollapsed}
-                                    titleSlot={sideTabs}
-                                    onOpen={openFile}
-                                    onCollapse={() => {
-                                        const p = filesPanel.current;
-                                        if (!p) return;
-                                        const wasCollapsed = p.isCollapsed();
-                                        if (wasCollapsed) p.expand();
-                                        else p.collapse();
-                                        setFilesCollapsed(!wasCollapsed);
-                                    }}
-                                />
-                            )}
-                        </Panel>
-                        <Separator className="handle horizontal"/>
-                        <Panel id="versions">
-                            <VersionsPanel
-                                checkpoints={checkpoints}
-                                hasFile={!!activePath && !!activeProject}
-                                gitMissing={!gitOk}
-                                noRepo={!!activeProject && gitOk && repo?.repo === false}
-                                error={ckptError}
-                                busy={ckptBusy}
-                                checkpointsOnly={session.versionsCheckpointsOnly}
-                                onCheckpointsOnlyChange={(value) =>
-                                    patch({versionsCheckpointsOnly: value})
-                                }
-                                onRestore={handleRestore}
-                            />
-                        </Panel>
-                    </Group>
+                        onOpen={openFile}
+                        onOpenAtLine={openAtLine}
+                        onToggleFiles={toggleFilesPanel}
+                        versions={{
+                            checkpoints,
+                            hasFile: !!activePath && !!activeProject,
+                            gitMissing: !gitOk,
+                            noRepo: !!activeProject && gitOk && repo?.repo === false,
+                            error: ckptError,
+                            busy: ckptBusy,
+                            checkpointsOnly: session.versionsCheckpointsOnly,
+                            onCheckpointsOnlyChange: (value) =>
+                                patch({versionsCheckpointsOnly: value}),
+                            onRestore: handleRestore,
+                        }}
+                    />
                 </Panel>
             </Group>
 
