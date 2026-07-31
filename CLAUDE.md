@@ -32,7 +32,16 @@ There is no ESLint/Prettier config. `pnpm typecheck` (i.e. `tsc`) is the lint: `
 mount-once effects, not leftovers.
 
 There is no vitest config file — tests needing a DOM opt in per file with a leading `// @vitest-environment jsdom`
-comment (see `src/lib/frontmatter.test.ts`).
+comment (see `src/lib/frontmatter.test.ts`), and stub the browser APIs jsdom lacks in a `beforeAll` (`ResizeObserver`,
+`matchMedia`, `Range.prototype.getClientRects`, `Element.prototype.scrollIntoView`).
+
+`src/App.test.tsx` is the only test that mounts the whole tree, and it is the only thing standing between a broken hook
+wiring and finding out at runtime — extend it when you add a hook. It mocks Tauri at the module boundary against an
+in-memory `Map` of paths, and stubs two components: `Editor` (the imperative Crepe/CodeMirror views own their own state,
+and mounting them tests the libraries rather than the wiring — the stub republishes its props so a test can act as the
+view) and `Terminal` (xterm needs a canvas and `tauri-pty` has no resolvable browser entry). **A stub's `data-testid`
+must not be a panel `id`**: react-resizable-panels puts `data-testid` on every panel it renders, taken from that panel's
+`id`, so `editor`, `terminal`, `left`, `right`, `center`, `files` and `versions` are all already taken.
 
 Requires Node 22+, pnpm, Rust 1.94+, and `git` on `PATH`. Linux/macOS only; Windows is not targeted.
 
