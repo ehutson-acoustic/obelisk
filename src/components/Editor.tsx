@@ -29,18 +29,8 @@ import {
 } from "prosemirror-search";
 import {useEffect, useRef} from "react";
 import {EMPTY_FIND_QUERY, type FindApi, type FindQuery, locate, type MatchCount, NO_MATCHES,} from "../lib/find";
-import {
-    frontmatterRemark,
-    frontmatterSchema,
-    frontmatterToolbarGuard,
-    frontmatterView,
-} from "../lib/frontmatter";
-import {
-    type DiagramStyle,
-    diagramPreview,
-    pinSourceWhileEditing,
-    retintDiagrams,
-} from "../lib/mermaid";
+import {frontmatterRemark, frontmatterSchema, frontmatterToolbarGuard, frontmatterView,} from "../lib/frontmatter";
+import {diagramPreview, type DiagramStyle, pinSourceWhileEditing, retintDiagrams,} from "../lib/mermaid";
 import type {Theme} from "../lib/theme";
 import {buildToolbar} from "../lib/toolbar";
 import type {EditorMode} from "../types";
@@ -54,7 +44,7 @@ type ViewProps = {
     readOnly?: boolean;
     cursor?: number;
     theme: Theme;
-    /** Colours and type for mermaid diagrams; WYSIWYG only (DESIGN §2.6). */
+    /** Colors and type for mermaid diagrams; WYSIWYG only (DESIGN §2.6). */
     diagramStyle: DiagramStyle;
     /** Only used to nudge CodeMirror into re-measuring; see `Source`. */
     zoom: number;
@@ -155,7 +145,7 @@ function Wysiwyg({
     onFindApiRef.current = onFindApi;
     diagramStyleRef.current = diagramStyle;
 
-    // Mermaid resolves colours during layout and writes them into the SVG, so a
+    // Mermaid resolves colors during layout and writes them into the SVG, so a
     // theme switch has to redraw every diagram on screen — the stylesheet swap
     // that restyles the rest of the editor cannot reach them (DESIGN §2.6).
     useEffect(() => {

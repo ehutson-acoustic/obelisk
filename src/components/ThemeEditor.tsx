@@ -51,7 +51,7 @@ function toHex(value: string | undefined, fallbackVar = ""): string {
     return /^#[0-9a-f]{6}$/i.test(resolved) ? resolved : "#000000";
 }
 
-/** A background is meaningfully absent in a way a colour input cannot express. */
+/** A background is meaningfully absent in a way a color input cannot express. */
 function isTransparent(value: string | undefined): boolean {
     const raw = value?.trim();
     return !raw || raw === "transparent" || raw === "none";
@@ -173,7 +173,7 @@ export function ThemeEditor({settings, onChange}: Readonly<Props>) {
                                     onChange={(next) => setProperty("fontFamily", next)}
                                 />
                             ) : field.key === "backgroundColor" ? (
-                                // A colour input has no way to say "no background", so
+                                // A color input has no way to say "no background", so
                                 // None sits beside it rather than being unreachable.
                                 <div className="field-row">
                                     <input

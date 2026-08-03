@@ -1,10 +1,5 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {
-    type AppSettings,
-    DEFAULT_APP_SETTINGS,
-    loadAppSettings,
-    saveAppSettings,
-} from "../lib/appSettings";
+import {type AppSettings, DEFAULT_APP_SETTINGS, loadAppSettings, saveAppSettings,} from "../lib/appSettings";
 import {
     type EditorSettings,
     mergeSettings,
@@ -16,13 +11,7 @@ import {
 } from "../lib/editorSettings";
 import type {DiagramStyle} from "../lib/mermaid";
 import {loadProjectSettings} from "../lib/projectSettings";
-import {
-    applyTheme,
-    injectStyle,
-    resolveTheme,
-    type Theme,
-    watchSystemTheme,
-} from "../lib/theme";
+import {applyTheme, injectStyle, resolveTheme, type Theme, watchSystemTheme,} from "../lib/theme";
 import type {Project} from "../types";
 
 /**
@@ -94,7 +83,7 @@ export function useAppearance(activeProject: Project | null, zoom: number) {
 
     /**
      * Mermaid diagrams are the one thing a theme switch cannot restyle through a
-     * stylesheet — mermaid resolves colours while it lays a diagram out and
+     * stylesheet — mermaid resolves colors while it lays a diagram out and
      * writes them into the SVG (DESIGN §2.6) — so the values it needs are passed
      * down as data rather than left to CSS.
      */

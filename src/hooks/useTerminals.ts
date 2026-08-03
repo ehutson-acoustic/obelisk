@@ -9,7 +9,7 @@ type Options = {
     activeProject: Project | null;
     /**
      * Resolved when a tab is created and stored on it, never read at mount: the
-     * terminal spawns as soon as the shell path is known, which always beats the
+     * terminal spawns as soon as the shell path is known which always beats the
      * async settings read (DESIGN §4).
      */
     startupCommand: string;

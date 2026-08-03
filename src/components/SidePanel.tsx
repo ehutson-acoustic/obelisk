@@ -1,11 +1,5 @@
 import type {RefObject} from "react";
-import {
-    Group,
-    type Layout,
-    Panel,
-    type PanelImperativeHandle,
-    Separator,
-} from "react-resizable-panels";
+import {Group, type Layout, Panel, type PanelImperativeHandle, Separator,} from "react-resizable-panels";
 import type {PanelLayout} from "../types";
 import {FileBrowser} from "./FileBrowser";
 import {SearchPanel} from "./SearchPanel";

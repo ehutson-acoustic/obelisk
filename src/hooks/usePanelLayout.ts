@@ -97,7 +97,7 @@ export function usePanelLayout({session, setSession, patch, ready}: Options) {
             const collapsed = p.isCollapsed();
             if (collapsed) p.expand();
             else p.collapse();
-            patch({[key]: !collapsed} as Partial<Session>);
+            patch({[key]: !collapsed});
             syncLeftWidth();
         },
         [patch, syncLeftWidth, leftPanel, rightPanel, termPanel],

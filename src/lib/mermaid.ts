@@ -145,7 +145,7 @@ function createSanitizer() {
     purify.addHook("uponSanitizeElement", (node, data) => {
         if (data.tagName !== "foreignobject") return;
         const parent = node.parentElement;
-        if (!parent || parent.namespaceURI !== SVG_NAMESPACE) {
+        if (parent?.namespaceURI !== SVG_NAMESPACE) {
             node.parentNode?.removeChild(node);
         }
     });

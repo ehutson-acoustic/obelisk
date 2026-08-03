@@ -6,8 +6,8 @@ import {
     decodeSource,
     DIAGRAM_CLASS,
     DIAGRAM_SOURCE_ATTR,
-    type DiagramStyle,
     diagramPreview,
+    type DiagramStyle,
     EDITING_CLASS,
     encodeSource,
     isMermaid,
@@ -120,17 +120,20 @@ describe("diagramPreview", () => {
 
     it("declines every language but mermaid, so other blocks keep no preview", () => {
         const render = diagramPreview(style);
-        expect(render("ts", "const a = 1", () => {})).toBeNull();
+        expect(render("ts", "const a = 1", () => {
+        })).toBeNull();
     });
 
     it("declines an empty diagram, so a just-opened fence stays editable", () => {
         const render = diagramPreview(style);
-        expect(render("mermaid", "   \n ", () => {})).toBeNull();
+        expect(render("mermaid", "   \n ", () => {
+        })).toBeNull();
     });
 
     it("promises a diagram asynchronously for a mermaid fence", () => {
         const render = diagramPreview(style);
-        expect(render("mermaid", "graph TD; a-->b", () => {})).toBeUndefined();
+        expect(render("mermaid", "graph TD; a-->b", () => {
+        })).toBeUndefined();
     });
 });
 
