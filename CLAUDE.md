@@ -47,9 +47,12 @@ Requires Node 22+, pnpm, Rust 1.94+, and `git` on `PATH`. Linux/macOS only; Wind
 
 ## Architecture
 
-**Rust is thin-ish.** `src-tauri/src/lib.rs` exposes fourteen commands: `default_shell`, `system_fonts`,
-`git_available`, five `checkpoint_*`, `repo_state`, four `branch_*`, and `git_stash` — all but the first two thin wrappers
-around `checkpoints.rs`. Everything else — file reads/writes, directory listing, the file
+**Rust is thin-ish.** `src-tauri/src/lib.rs` exposes sixteen commands: `default_shell`, `system_fonts`,
+`git_available`, five `checkpoint_*`, `repo_state`, four `branch_*`, `git_stash`, `take_open_requests` +
+`project_dir_for` for files handed over by the OS (`DESIGN §10.1`), and `default_editor_state` + `set_default_editor`
+for the handler binding (`DESIGN §10.2`) — the `checkpoint_*`, `branch_*`, `repo_state` and `git_stash` ones are thin
+wrappers around `checkpoints.rs`; the rest stand alone. `associations.rs` is the only place the app links a system
+framework (CoreServices, macOS only) — everything else that talks to the OS shells out. Everything else — file reads/writes, directory listing, the file
 watcher, config persistence — happens in the frontend through `@tauri-apps/plugin-fs`. Adding a Rust command means
 registering it in `invoke_handler!`; adding a new fs/plugin API usually means adding a permission to
 `src-tauri/capabilities/default.json`.
@@ -62,8 +65,8 @@ each cross-cutting concern is a hook in `src/hooks/`, and each piece of the rend
 
 **The hooks are called in dependency order and that order is load-bearing.** `useStatus` → `useGitAvailable` →
 `usePanelLayout` → `useAppearance` → `useFind` → `useTerminals` → `useZoom` → `useDocument` → `useCheckpoints` →
-`useBranches`. Effects run in the order their hooks appear, `useDocument` needs the panel refs and the resolved
-settings, and both `useCheckpoints` and `useBranches` need the document's buffer and its save path. That last edge is
+`useBranches` → `useFileOpens`. Effects run in the order their hooks appear, `useDocument` needs the panel refs and the
+resolved settings, and both `useCheckpoints` and `useBranches` need the document's buffer and its save path. That last edge is
 why `useGitAvailable` is its own hook and why the watcher's "commit the buffer before an external write lands" step is
 injected into `useDocument` as `onBeforeExternalChange` rather than called directly — checkpointing depends on the
 document, so the document must not reach back into checkpointing.
@@ -72,6 +75,10 @@ document, so the document must not reach back into checkpointing.
 `revision`, `lastWrite` and the watcher are one mechanism. Downstream hooks take its return value as `doc` and
 destructure only the stable members they need (`contentRef`, `dirtyRef`, `flushSave`, `saveNow`, `loadInto`) — never
 put `doc` itself in a dependency array.
+
+`useFileOpens` is last because nothing depends on it, and it writes the session directly rather than calling
+`doc.openFile`: a file arriving from the OS may come with a different project, and `activeProject` and `activeFilePath`
+have to change in one commit or checkpoints briefly address the wrong repo.
 
 **One `Session` object is the app's state** (`src/types.ts`), persisted debounced to `session.json` in the OS app config
 dir. Loading shallow-merges over `DEFAULT_SESSION` so new keys pick up defaults — keep new fields optional-safe rather

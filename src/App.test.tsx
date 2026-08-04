@@ -4,7 +4,7 @@ import {afterEach, beforeAll, beforeEach, describe, expect, it, vi} from "vitest
 import {DEFAULT_SESSION, type Session} from "./types";
 
 /**
- * A smoke test over the whole tree. `App` wires ten hooks to seven components
+ * A smoke test over the whole tree. `App` wires eleven hooks to seven components
  * and none of that is reachable from the unit tests in `lib/`, so this is the
  * only place a broken hook order, a dropped callback or a stale ref shows up
  * before the app is running.
@@ -22,6 +22,9 @@ const FILE = "/work/notes/note.md";
 
 /** Path to contents. Reset per test. */
 let files = new Map<string, string>();
+
+/** What `take_open_requests` hands back — files the OS asked us to open. */
+let openRequests: string[] = [];
 
 /** The props `Editor` was last rendered with, so tests can act as the view. */
 type EditorProps = {
@@ -54,6 +57,12 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({open: async () => null}));
 
+// Nothing here emits, so the only thing under test is the drain path; a warm
+// open is the same code reached from the listener.
+vi.mock("@tauri-apps/api/event", () => ({
+    listen: async () => () => undefined,
+}));
+
 // xterm needs a canvas and tauri-pty has no resolvable browser entry, so the
 // terminal view is stubbed at its module. No test opens a terminal tab, so it
 // is never rendered either way — this only keeps the import chain out of jsdom.
@@ -62,8 +71,17 @@ vi.mock("./components/Terminal", () => ({
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
-    invoke: async (cmd: string) => {
+    invoke: async (cmd: string, args?: Record<string, unknown>) => {
         switch (cmd) {
+            case "take_open_requests": {
+                const pending = openRequests;
+                openRequests = [];
+                return pending;
+            }
+            case "project_dir_for":
+                // No repo in the fake filesystem, so the real command's fallback:
+                // the containing directory.
+                return String(args?.file).split("/").slice(0, -1).join("/");
             case "default_shell":
                 return "/bin/zsh";
             case "git_available":
@@ -145,6 +163,7 @@ beforeAll(() => {
 beforeEach(() => {
     files = new Map([[FILE, "# Note\n"]]);
     editorProps = null;
+    openRequests = [];
 });
 
 afterEach(() => {
@@ -211,6 +230,34 @@ describe("App", () => {
             vi.advanceTimersByTime(200);
         });
         await waitFor(() => expect(files.get(FILE)).toBe("# Note\n\nEdited.\n"));
+    });
+
+    it("opens a file the OS queued before launch, adopting its project", async () => {
+        const outside = "/elsewhere/inbox/todo.md";
+        files.set(outside, "# Todo\n");
+        openRequests = [outside];
+        seedSession({});
+        await mountApp();
+
+        await waitFor(() => expect(editorProps?.value).toBe("# Todo\n"));
+        expect(screen.getByText("todo.md")).toBeTruthy();
+        // No project contained it, so one was derived from the file's directory —
+        // without which there is no checkpointing and no terminal cwd.
+        expect(screen.getByText("inbox")).toBeTruthy();
+        expect(screen.getByText("/elsewhere/inbox")).toBeTruthy();
+    });
+
+    it("opens a queued file into the project that already contains it", async () => {
+        const sibling = `${PROJECT_DIR}/sibling.md`;
+        files.set(sibling, "# Sibling\n");
+        openRequests = [sibling];
+        seedSession(WITH_FILE);
+        await mountApp();
+
+        await waitFor(() => expect(editorProps?.value).toBe("# Sibling\n"));
+        // One project card, not two: the configured project was reused.
+        expect(screen.getAllByText("Notes")).toHaveLength(1);
+        expect(screen.queryByText("notes")).toBeNull();
     });
 
     it("collapses and expands the right sidebar from the header toggle", async () => {

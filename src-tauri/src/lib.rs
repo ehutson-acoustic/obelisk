@@ -1,10 +1,14 @@
+pub mod associations;
 pub mod checkpoints;
 pub mod search;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use checkpoints::{Branches, Checkpoint, CheckpointStatus, RepoState};
 use search::{SearchOptions, SearchOutcome};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// The webview has no access to the process environment, so the shell to spawn
 /// has to come from the Rust side.
@@ -163,9 +167,121 @@ fn search_project(
     search::search(&project, &query, &options)
 }
 
+// ---- files opened from the OS (DESIGN §10.1) -------------------------------
+
+/// Event carrying paths to a webview that is already up. Its twin is
+/// `OPEN_FILES_EVENT` in `src/lib/openRequests.ts`.
+const OPEN_FILES_EVENT: &str = "obelisk://open-files";
+
+/// Files the OS asked us to open, held until the webview can take them.
+///
+/// A double-clicked file arrives long before the frontend exists — on macOS
+/// through `RunEvent::Opened`, on Linux in `argv` — so the paths have to survive
+/// the gap. `ready` flips on the frontend's first drain, after which later opens
+/// go straight out as an event instead of accumulating unread.
+#[derive(Default)]
+struct OpenRequests {
+    paths: Mutex<Vec<String>>,
+    ready: AtomicBool,
+}
+
+/// Hands paths to the frontend if it is listening, queues them if it is not.
+fn queue_opens(app: &AppHandle, paths: Vec<PathBuf>) {
+    let paths: Vec<String> = paths
+        .into_iter()
+        // A stale path from a `%F` the desktop entry never substituted, or a
+        // directory dropped on the icon, would otherwise open an empty tab.
+        .filter(|path| path.is_file())
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+    if paths.is_empty() {
+        return;
+    }
+
+    let state = app.state::<OpenRequests>();
+    if state.ready.load(Ordering::SeqCst) {
+        let _ = app.emit(OPEN_FILES_EVENT, &paths);
+    } else if let Ok(mut queue) = state.paths.lock() {
+        queue.extend(paths);
+    }
+
+    // Linux hands a second launch to the instance already running, which stays
+    // buried behind whatever has focus unless it raises itself. macOS does this
+    // for us, and calling it there is harmless.
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_focus();
+    }
+}
+
+/// Drains the queue, and in doing so declares the webview ready — so this is
+/// also what switches `queue_opens` over to emitting.
+#[tauri::command]
+fn take_open_requests(state: State<'_, OpenRequests>) -> Vec<String> {
+    state.ready.store(true, Ordering::SeqCst);
+    state
+        .paths
+        .lock()
+        .map(|mut queue| std::mem::take(&mut *queue))
+        .unwrap_or_default()
+}
+
+/// Directory to adopt as the project for a file opened from outside the app.
+///
+/// The repo root when there is one, because that is the directory every other
+/// part of the app assumes a project is (DESIGN §3.1) — pathspecs, the file
+/// browser and `.obelisk/settings.json` all resolve against it. The containing
+/// directory otherwise.
+#[tauri::command]
+fn project_dir_for(file: PathBuf) -> Option<String> {
+    let parent = file.parent()?;
+    let dir = checkpoints::repo_root(parent).unwrap_or_else(|| parent.to_path_buf());
+    Some(dir.to_string_lossy().into_owned())
+}
+
+/// Whether Obelisk holds the system's Markdown binding (DESIGN §10.2).
+#[tauri::command]
+fn default_editor_state(app: AppHandle) -> associations::DefaultEditorState {
+    associations::state(&app.config().identifier)
+}
+
+/// Claims the binding, then reports the state that actually resulted rather than
+/// the one we asked for — the OS is entitled to refuse, and on Linux the write
+/// goes through a helper that may not be installed.
+#[tauri::command]
+fn set_default_editor(app: AppHandle) -> Result<associations::DefaultEditorState, String> {
+    let bundle_id = app.config().identifier.clone();
+    associations::make_default(&bundle_id)?;
+    Ok(associations::state(&bundle_id))
+}
+
+/// Paths from the command line — how Linux delivers a file click, and what
+/// `open -a Obelisk file.md` reaches us with on macOS.
+///
+/// Flags are dropped because the webview adds its own, and so is a literal `%F`
+/// or `%U`, which is what a desktop entry passes through when it was launched
+/// with no file to substitute.
+fn paths_from_args<I: IntoIterator<Item = String>>(args: I) -> Vec<PathBuf> {
+    args.into_iter()
+        .skip(1)
+        .filter(|arg| !arg.starts_with('-') && !arg.starts_with('%'))
+        .map(PathBuf::from)
+        .collect()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Linux-only, and first in the chain as the plugin requires. macOS reuses
+    // the running app and re-fires `RunEvent::Opened`, but a second Linux launch
+    // is a whole new process that has to hand its argv over and exit.
+    #[cfg(target_os = "linux")]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+        queue_opens(app, paths_from_args(argv));
+    }));
+
+    let app = builder
+        .manage(OpenRequests::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -185,8 +301,26 @@ pub fn run() {
             branch_create,
             branch_track,
             git_stash,
-            search_project
+            search_project,
+            take_open_requests,
+            project_dir_for,
+            default_editor_state,
+            set_default_editor
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        // `build` rather than `run`, because the file the user double-clicked
+        // reaches us as a run event and `run(context)` discards the callback.
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    queue_opens(app.handle(), paths_from_args(std::env::args()));
+
+    app.run(|_app, _event| {
+        // macOS delivers a file click as an Apple event, not on the command
+        // line, and `RunEvent::Opened` is the only place it surfaces.
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = &_event {
+            let paths = urls.iter().filter_map(|url| url.to_file_path().ok());
+            queue_opens(_app, paths.collect());
+        }
+    });
 }

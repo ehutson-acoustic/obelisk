@@ -4,6 +4,7 @@ import {useState} from "react";
 import type {Appearance, AppSettings} from "../lib/appSettings";
 import {THEMES} from "../lib/editorSettings";
 import {resolveTheme} from "../lib/theme";
+import {DefaultEditorSetting} from "./DefaultEditorSetting";
 import {ThemeEditor} from "./ThemeEditor";
 
 const MODES: { value: Appearance; label: string; icon: typeof Sun }[] = [
@@ -25,7 +26,9 @@ export function SettingsDialog({
                                    onChange,
                                    onOpenChange,
                                }: Readonly<Props>) {
-    const [tab, setTab] = useState<"appearance" | "markdown">("appearance");
+    const [tab, setTab] = useState<"appearance" | "markdown" | "system">(
+        "appearance",
+    );
     const resolved = resolveTheme(settings.appearance);
 
     return (
@@ -52,9 +55,17 @@ export function SettingsDialog({
                         >
                             Markdown styling
                         </button>
+                        <button
+                            role="tab"
+                            aria-selected={tab === "system"}
+                            className={tab === "system" ? "active" : ""}
+                            onClick={() => setTab("system")}
+                        >
+                            System
+                        </button>
                     </div>
 
-                    {tab === "appearance" ? (
+                    {tab === "appearance" && (
                         <>
                             {/* Independent of the theme: every theme defines both a
                                 light and a dark palette (DESIGN §5.3). */}
@@ -112,12 +123,18 @@ export function SettingsDialog({
                                 </div>
                             </div>
                         </>
-                    ) : (
+                    )}
+
+                    {tab === "markdown" && (
                         <ThemeEditor
                             settings={settings.editor}
                             onChange={(editor) => onChange({...settings, editor})}
                         />
                     )}
+
+                    {/* Mounted only while the tab is open, which is what makes the
+                        row's OS read happen at a moment its answer is current. */}
+                    {tab === "system" && <DefaultEditorSetting/>}
 
                     <div className="dialog-actions">
                         <button className="btn primary" onClick={() => onOpenChange(false)}>

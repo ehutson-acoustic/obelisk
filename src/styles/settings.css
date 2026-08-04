@@ -209,3 +209,23 @@
     height: 26px;
     padding: 2px;
 }
+
+/* ---- default editor ---------------------------------------------------- */
+
+/* The settled state of the default-editor row. Distinguished from the hints
+   around it by colour alone, since there is nothing left to press. */
+.default-editor-ok {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    font-size: 12px;
+    color: var(--accent);
+}
+
+.default-editor-ok code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--bg-sunken);
+}

@@ -5,18 +5,8 @@ import {FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, Settings,} from "lucide
 import type {Ref} from "react";
 import {useState} from "react";
 import {readableFg} from "../lib/contrast";
+import {SWATCHES} from "../lib/projects";
 import type {Project} from "../types";
-
-const SWATCHES = [
-    "#2f6f4e",
-    "#1f4e79",
-    "#6b3fa0",
-    "#a03f3f",
-    "#b5761f",
-    "#3f6b6b",
-    "#7a5230",
-    "#43474e",
-];
 
 type Props = {
     /** Lets App track the sidebar's live width, which the header tabs align to. */

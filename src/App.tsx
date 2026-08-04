@@ -16,6 +16,7 @@ import {useAppearance} from "./hooks/useAppearance";
 import {useBranches} from "./hooks/useBranches";
 import {useCheckpoints} from "./hooks/useCheckpoints";
 import {useDocument} from "./hooks/useDocument";
+import {useFileOpens} from "./hooks/useFileOpens";
 import {useFind} from "./hooks/useFind";
 import {useGitAvailable} from "./hooks/useGitAvailable";
 import {usePanelLayout} from "./hooks/usePanelLayout";
@@ -149,6 +150,10 @@ export default function App() {
         refreshCheckpoints: ckpt.refreshCheckpoints,
         setStatus,
     });
+
+    // Last, because nothing else depends on it and its own commit has to land on
+    // a session the hooks above have already settled.
+    useFileOpens({ready, projects: session.projects, setSession, setStatus});
 
     // ---- render --------------------------------------------------------------
 

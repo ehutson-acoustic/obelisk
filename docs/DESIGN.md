@@ -575,6 +575,62 @@ differs meaningfully from Unix ptys.
 
 Verified dev environment: Ubuntu 24.04, webkit2gtk 4.1, Node 22.17, pnpm 10.29, Rust 1.94, git 2.43.
 
+### 10.1 Opening files from the OS
+
+Obelisk registers as a Markdown editor so a double-click in Finder or a `xdg-open` lands in it. Three separate problems,
+each with a mechanism of its own.
+
+**Being offered as a handler.** `bundle.fileAssociations` in `tauri.conf.json`. The `contentTypes` entry is the
+load-bearing part on macOS and is not optional: `tauri-utils` maps extensions to UTIs from a fixed table that has no
+markdown entry, so without it the bundle declares `CFBundleTypeExtensions` and an empty `LSItemContentTypes` — an
+extension-only claim. LaunchServices binds default handlers per *content type*, so an extension-only claim can be picked
+for one file through Finder's Open With and still leave "Change All…" with nothing to bind. `.md` and `.markdown` are
+declared as `net.daringfireball.markdown`; `.mdx` gets its own entry, as it is not that type. Rank is `Alternate`, not
+`Owner` — Obelisk did not invent the format. On Linux the same block writes `MimeType=` into the desktop entry.
+
+**Receiving the path.** Two unrelated delivery routes. macOS sends an Apple event that surfaces as
+`RunEvent::Opened`, which is only reachable if the app is started with `build()` + `run(callback)` — the one-line
+`run(context)` discards the callback and the file silently never arrives. Linux passes the path in `argv`, and a *second*
+launch is a whole new process, so `tauri-plugin-single-instance` forwards its argv to the instance already running and
+raises it. macOS needs no such plugin: LaunchServices reuses the running app and fires `Opened` again.
+
+**Surviving the launch gap.** Both routes fire before a webview exists. Paths go into an `OpenRequests` queue in Rust,
+which the frontend drains through `take_open_requests` on mount; that call is also what marks the frontend ready, after
+which further opens are emitted as events rather than queued. The frontend subscribes *before* it drains, because
+draining is what flips the switch — the other order leaves a window where an event fires into no listener.
+
+A file arriving this way usually belongs to no configured project, and a file without a project has no checkpoint
+history, no terminal cwd and no settings. So one is adopted: the nearest configured project containing the path, else a
+new project rooted at the file's repository root — the same directory §3.1 requires everywhere else — falling back to the
+containing directory. The project and the file are committed to the session in a single update, because every consumer
+reads `activeFilePath` against `activeProject` and an intermediate render would pair the new file with the old repo.
+
+Registration only takes effect from an *installed* bundle. On macOS that means `Obelisk.app` in `/Applications` (a `dev`
+binary is invisible to LaunchServices, and duplicate copies of the bundle make it pick unpredictably); on Linux, an
+installed `.deb`, or a hand-written desktop entry for the AppImage.
+
+### 10.2 Becoming the default
+
+§10.1 gets Obelisk *offered*. Which handler wins is a separate, per-user preference, and the Settings → System row is
+where it is claimed — an installer cannot do it, and a DMG cannot run code at all. Both platforms are read before the
+button renders, because the answer lives in the OS and moves without the app's involvement.
+
+macOS goes through `LSSetDefaultRoleHandlerForContentType` / `LSCopyDefaultRoleHandlerForContentType`, keyed on
+`net.daringfireball.markdown` and the app's own bundle identifier. These are `API_TO_BE_DEPRECATED` in the SDK —
+flagged, with no removal version — and the documented replacement,
+`-[NSWorkspace setDefaultApplicationAtURL:toOpenContentType:completionHandler:]`, is macOS 12+ and asynchronous: an
+Objective-C bridge and a block, plus the loss of the 10.15 floor, to make two calls. Revisit if the C pair ever gets a
+removal version.
+
+Linux shells out to `xdg-mime default`, for both `text/markdown` and the legacy `text/x-markdown`, pointed at whichever
+desktop entry is actually installed under `$XDG_DATA_HOME`/`$XDG_DATA_DIRS`. When none is, the row says so and disables
+itself rather than writing a binding to a name that resolves to nothing.
+
+Two states are reported rather than assumed. The command returns the state that *resulted* from the write instead of the
+one requested, because the OS may refuse — the realistic macOS refusal being a bundle LaunchServices has never seen,
+which is what running under `cargo` looks like. And `.mdx` is deliberately absent: neither platform has a registered type
+for it, so it can only ever be bound per file.
+
 ***
 
 ## 11. Testing
